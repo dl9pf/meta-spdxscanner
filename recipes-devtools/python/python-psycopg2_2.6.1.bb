@@ -1,0 +1,27 @@
+DESCRIPTION = "Python-PostgreSQL Database Adapter"
+HOMEPAGE = "http://initd.org/psycopg/"
+SECTION = "devel/python"
+LICENSE = "GPLv3+"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=2c9872d13fa571e7ba6de95055da1fe2"
+
+DEPENDS += "postgresql"
+DEPENDS_class-native += "postgresql-native"
+
+SRCNAME = "psycopg2"
+
+SRC_URI = "https://pypi.python.org/packages/source/p/${SRCNAME}/${SRCNAME}-${PV}.tar.gz \
+           file://remove-pg-config.patch \
+          "
+
+SRC_URI[md5sum] = "842b44f8c95517ed5b792081a2370da1"
+SRC_URI[sha256sum] = "6acf9abbbe757ef75dc2ecd9d91ba749547941abaffbe69ff2086a9e37d4904c"
+
+S = "${WORKDIR}/${SRCNAME}-${PV}"
+
+inherit distutils
+
+RDEPENDS += " postgresql "
+RDEPENDS_class-native += " postgresql-native"
+
+
+BBCLASSEXTEND = "native"
