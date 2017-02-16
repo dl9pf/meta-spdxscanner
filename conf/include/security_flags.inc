@@ -1,0 +1,1 @@
+SECURITY_CFLAGS_pn-fossology-nomos = "${SECURITY_NO_PIE_CFLAGS}"

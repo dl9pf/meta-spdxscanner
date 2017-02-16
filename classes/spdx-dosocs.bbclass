@@ -10,7 +10,7 @@
 #
 # Note:
 # 1) Make sure DoSOCSv2 has beed installed in your host
-# 2) By default,spdx files will be output to the path which is defined as[SPDX_MANIFEST_DIR] 
+# 2) By default,spdx files will be output to the path which is defined as[SPDX_DEPLOY_DIR] 
 #    in ./meta/conf/spdx-dosocs.conf.
 
 SPDXOUTPUTDIR = "${WORKDIR}/spdx_output_dir"
@@ -32,7 +32,6 @@ python do_spdx () {
     ## gcc is too big to get spdx file.
     if 'gcc' in d.getVar('PN', True):
         return None   
-
     info = {} 
     info['workdir'] = (d.getVar('WORKDIR', True) or "")
     info['pn'] = (d.getVar( 'PN', True ) or "")
@@ -51,7 +50,7 @@ python do_spdx () {
     info['package_summary'] = info['package_summary'].replace("'"," ")
 
     spdx_sstate_dir = (d.getVar('SPDXSSTATEDIR', True) or "")
-    manifest_dir = (d.getVar('SPDX_MANIFEST_DIR', True) or "")
+    manifest_dir = (d.getVar('SPDX_DEPLOY_DIR', True) or "")
     info['outfile'] = os.path.join(manifest_dir, info['pn'] + "-" + info['pv'] + ".spdx" )
     sstatefile = os.path.join(spdx_sstate_dir, 
         info['pn'] + "-" + info['pv'] + ".spdx" )
@@ -75,15 +74,13 @@ python do_spdx () {
             cache_cur = True
             create_manifest(info,sstatefile)
     if not cache_cur:
-        ## setup dosocs2 command
-        dosocs2_command = "dosocs2 oneshot %s" % info['sourcedir']
-        ## no necessary to scan the git directory.
         git_path = "%s/.git" % info['sourcedir']
         if os.path.exists(git_path):
             remove_dir_tree(git_path)
 
         ## Get spdx file
-        run_dosocs2(dosocs2_command,sstatefile)
+        bb.warn(' run_dosocs2 ...... ')
+        invoke_dosocs2(info['sourcedir'],sstatefile)
         if get_cached_spdx( sstatefile ) != None:
             write_cached_spdx( info,sstatefile,cur_ver_code )
             ## CREATE MANIFEST(write to outfile )
@@ -95,7 +92,7 @@ python do_spdx () {
 ## Get the src after do_patch.
 python do_get_spdx_s() {
     
-    ## It's no necessary  to get spdx files for *-native
+    ## It's no necessary to get spdx files for *-native
     if d.getVar('PN', True) == d.getVar('BPN', True) + "-native":
         return None
 
@@ -126,6 +123,26 @@ python do_get_spdx_s() {
 
 addtask get_spdx_s after do_patch before do_configure
 addtask spdx after do_get_spdx_s before do_configure
+
+def invoke_dosocs2( OSS_src_dir, spdx_file):
+    import subprocess
+    import string
+    import json
+    import codecs
+
+    cmd = "dosocs2 oneshot %s" % (OSS_src_dir)
+    bb.note("*********dosocs cmd  = %s" % cmd)
+
+    p = subprocess.Popen(cmd.split(),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    dosocs2_output, dosocs2_error = p.communicate()
+    if p.returncode != 0:
+        return None
+
+    dosocs2_output = dosocs2_output.decode('utf-8')
+
+    f = codecs.open(spdx_file,'w','utf-8')
+    f.write(dosocs2_output)
 
 def create_manifest(info,sstatefile):
     import shutil
@@ -221,21 +238,6 @@ def hash_string( data ):
     sha1 = hashlib.sha1()
     sha1.update( data.encode('utf-8') )
     return sha1.hexdigest()
-
-def run_dosocs2( dosocs2_command,  spdx_file ):
-    import subprocess, codecs 
-    import string, re
-
-    p = subprocess.Popen(dosocs2_command.split(),
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    dosocs2_output, dosocs2_error = p.communicate()
-    if p.returncode != 0:
-        return None
-
-    dosocs2_output = dosocs2_output.decode('utf-8')
-    
-    f = codecs.open(spdx_file,'w','utf-8')
-    f.write(dosocs2_output)
 
 def get_ver_code( dirname ):
     chksums = []
