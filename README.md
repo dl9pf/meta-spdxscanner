@@ -1,11 +1,18 @@
 # meta-spdxscanner
-SPDX scanner support
+SPDX scanner(DoSOCSv2) support
 
+# This layer depends on:
 
-# Dependencies
-
+- openembedded-core
 - meta-openembedded/meta-oe
-  - PostgreSQL
 - meta-openembedded/meta-python
-  - jinja2
-  - SQLAlchemy
+
+# How to use
+
+- inherit the folowing class in your conf/local.conf for all of recipes or
+  in some recipes which you want.
+  inherit spdx-dosocs
+
+- Redefine SPDX_DEPLOY_DIR in conf/local.conf:
+  SPDX_DEPLOY_DIR = "$PATH_DEST/$SPDX_DESTDIR"
+
