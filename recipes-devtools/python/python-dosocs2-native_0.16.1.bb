@@ -18,8 +18,15 @@ S = "${WORKDIR}/DoSOCSv2-${PV}/"
 
 inherit distutils native
 
-DEPENDS += "python-jinja2-native python-native"
-DEPENDS += "python-psycopg2-native python-docopt-native python-sqlalchemy-native file-native"
+DEPENDS += "python-jinja2-native \
+            python-native \
+            python-psycopg2-native \
+            python-docopt-native \
+            python-sqlalchemy-native \
+            file-native \
+            fossology-nomos-native \
+            python-markupsafe-native \
+            python-magic-native "
 
 python do_dosocs2_init(){
     import os

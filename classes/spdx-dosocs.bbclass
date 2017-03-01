@@ -31,7 +31,8 @@ python do_spdx () {
 
     ## gcc is too big to get spdx file.
     if 'gcc' in d.getVar('PN', True):
-        return None   
+        return None 
+    
     info = {} 
     info['workdir'] = (d.getVar('WORKDIR', True) or "")
     info['pn'] = (d.getVar( 'PN', True ) or "")
@@ -79,7 +80,7 @@ python do_spdx () {
             remove_dir_tree(git_path)
 
         ## Get spdx file
-        bb.warn(' run_dosocs2 ...... ')
+        #bb.warn(' run_dosocs2 ...... ')
         invoke_dosocs2(info['sourcedir'],sstatefile)
         if get_cached_spdx( sstatefile ) != None:
             write_cached_spdx( info,sstatefile,cur_ver_code )
@@ -89,6 +90,11 @@ python do_spdx () {
             bb.warn('Can\'t get the spdx file ' + info['pn'] + '. Please check your dosocs2.')
     d.setVar('WORKDIR', info['workdir'])
 }
+python () {
+    deps = ' python-dosocs2-native:do_populate_sysroot'
+    d.appendVarFlag('do_spdx', 'depends', deps)
+}
+
 ## Get the src after do_patch.
 python do_get_spdx_s() {
     
@@ -122,7 +128,7 @@ python do_get_spdx_s() {
 }
 
 addtask get_spdx_s after do_patch before do_configure
-addtask spdx after do_get_spdx_s before do_configure
+addtask spdx after do_get_spdx_s before do_package
 
 def invoke_dosocs2( OSS_src_dir, spdx_file):
     import subprocess
@@ -131,8 +137,6 @@ def invoke_dosocs2( OSS_src_dir, spdx_file):
     import codecs
 
     cmd = "dosocs2 oneshot %s" % (OSS_src_dir)
-    bb.note("*********dosocs cmd  = %s" % cmd)
-
     p = subprocess.Popen(cmd.split(),
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     dosocs2_output, dosocs2_error = p.communicate()

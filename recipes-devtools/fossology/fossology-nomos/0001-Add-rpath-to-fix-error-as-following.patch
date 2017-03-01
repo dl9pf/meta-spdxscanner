@@ -1,0 +1,28 @@
+From b81cced8566406c85b38a1c3c71858982a3dd4a5 Mon Sep 17 00:00:00 2001
+From: Lei Maohui <leimaohui@cn.fujitsu.com>
+Date: Wed, 1 Mar 2017 10:23:03 +0900
+Subject: [PATCH] Add rpath to fix error as following:
+
+/usr/bin/ld: warning: libpcre.so.1, needed by tmp/sysroots/x86_64-linux/usr/lib/libglib-2.0.so, not found (try using -rpath or -rpath-link)
+
+Signed-off-by: Lei Maohui <leimaohui@cn.fujitsu.com>
+---
+ Makefile.sa | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile.sa b/Makefile.sa
+index 24a16ca..f39bdd6 100644
+--- a/Makefile.sa
++++ b/Makefile.sa
+@@ -26,7 +26,7 @@ all: encode nomos
+ debug: nomos-gl
+ 
+ nomos: nomos.o $(OBJS) $(GENOBJS)
+-	$(CC) nomos.o $(OBJS) $(GENOBJS) $(CFLAGS_LOCAL) -o $(EXE)
++	$(CC) nomos.o $(OBJS) $(GENOBJS) $(CFLAGS_LOCAL) -o $(EXE) -Wl,-rpath,${libdir}
+ 
+ nomos.o: nomos.c $(HDRS) $(DB) $(REPO) $(AGENTLIB) $(VARS)
+ 	$(CC) -c $< $(CFLAGS_LOCAL) $(DEFS)
+-- 
+1.8.4.2
+

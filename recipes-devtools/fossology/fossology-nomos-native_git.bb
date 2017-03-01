@@ -4,11 +4,13 @@ SECTION = "devel/python"
 LICENSE = "GPLv2"
 
 LIC_FILES_CHKSUM = "file://GenCodeCopyright;md5=7296ec131dbd040718b64fb843d63048"
-DEPENDS = "glib-2.0-native"
+DEPENDS = "glib-2.0-native libpcre-native"
 
 SRCREV = "34467fd530b832f08c095936a72c22c40fa13278"
 BRANCH = "release/${PV}/master"
-SRC_URI = "git://github.com/fossology/fossology.git" 
+SRC_URI = "git://github.com/fossology/fossology.git \
+           file://0001-Add-rpath-to-fix-error-as-following.patch \
+          " 
 
 S = "${WORKDIR}/git/src/nomos/agent"
 
