@@ -9,6 +9,7 @@ LICENSE = "BSD"
 LIC_FILES_CHKSUM = "file://setup.py;md5=1cf0577ca152455b257b815fcc8517de"
 
 SRC_URI = "ftp://ftp.astron.com/pub/file/file-${PV}.tar.gz \
+           file://0001-Modified-the-magic.py-for-dosocs2-to-fix-the-error-a.patch \
           "
 
 SRC_URI[md5sum] = "8fb13e5259fe447e02c4a37bc7225add"

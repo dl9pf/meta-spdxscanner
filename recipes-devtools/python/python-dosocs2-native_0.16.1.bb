@@ -28,14 +28,13 @@ DEPENDS += "python-jinja2-native \
             python-markupsafe-native \
             python-magic-native "
 
-python do_dosocs2_init(){
+python populate_sysroot_append() {
     import os
     import subprocess
     import bb
     import oe.utils
     import string
 
-    bb.note("*********PATH = %s!" % os.getenv('PATH'))
     dosocs2_cmd = bb.utils.which(os.getenv('PATH'), "dosocs2")
     dosocs2_init_cmd = "%s dbinit --no-confirm" % (dosocs2_cmd)
     bb.note(dosocs2_init_cmd)
@@ -48,5 +47,3 @@ python do_dosocs2_init(){
         bb.fatal("Could not invoke dosocs2 dbinit Command "
                  "'%s' returned %d:\n%s" % (dosocs2_init_cmd, e.returncode, e.output))
 }
-
-addtask do_dosocs2_init after do_populate_sysroot
