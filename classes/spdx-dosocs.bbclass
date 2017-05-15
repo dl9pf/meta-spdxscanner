@@ -91,7 +91,7 @@ python do_spdx () {
     d.setVar('WORKDIR', info['workdir'])
 }
 python () {
-    deps = ' python-dosocs2-native:do_populate_sysroot'
+    deps = ' python-dosocs2-native:do_dosocs2_init'
     d.appendVarFlag('do_spdx', 'depends', deps)
 }
 

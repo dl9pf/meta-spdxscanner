@@ -16,7 +16,9 @@ SRC_URI[sha256sum] = "868e4c1658bd54546f6f65be9770a80ac98793da3dcb71120a52237b07
 
 S = "${WORKDIR}/DoSOCSv2-${PV}/"
 
-inherit distutils native
+inherit distutils native 
+
+addtask do_dosocs2_init after do_populate_sysroot
 
 DEPENDS += "python-jinja2-native \
             python-native \
@@ -28,15 +30,18 @@ DEPENDS += "python-jinja2-native \
             python-markupsafe-native \
             python-magic-native "
 
-python populate_sysroot_append() {
+do_install_append() {
+	sed -i "s|scanner_nomos_path = /usr/local/|scanner_nomos_path = ${STAGING_DIR_NATIVE}/usr/|g" ${D}${PYTHON_SITEPACKAGES_DIR}/dosocs2-0.16.1-py2.7.egg/dosocs2/configtools.py
+}
+python do_dosocs2_init() {
+
     import os
     import subprocess
     import bb
     import oe.utils
     import string
 
-    dosocs2_cmd = bb.utils.which(os.getenv('PATH'), "dosocs2")
-    dosocs2_init_cmd = "%s dbinit --no-confirm" % (dosocs2_cmd)
+    dosocs2_init_cmd = "dosocs2 dbinit --no-confirm"
     bb.note(dosocs2_init_cmd)
     try:
         complementary_pkgs = subprocess.check_output(dosocs2_init_cmd,
