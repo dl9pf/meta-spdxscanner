@@ -1,0 +1,25 @@
+From 3e3bef6aff2563e4bb206c1169b783a1c61308e5 Mon Sep 17 00:00:00 2001
+From: Lei Maohui <leimaohui@cn.fujitsu.com>
+Date: Fri, 25 Aug 2017 03:03:06 +0900
+Subject: [PATCH] Delete the version limit for dosocs2.
+
+Signed-off-by: Lei Maohui <leimaohui@cn.fujitsu.com>
+---
+ setup.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/setup.py b/setup.py
+index b35863f..1bae161 100644
+--- a/setup.py
++++ b/setup.py
+@@ -1,6 +1,6 @@
+ from setuptools import setup
+ 
+-_dosocs2_version = '0.16.1'
++_dosocs2_version = ''
+ 
+ install_requires=[
+     ]
+-- 
+2.7.4
+
