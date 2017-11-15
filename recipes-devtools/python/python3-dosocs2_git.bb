@@ -7,6 +7,8 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=b234ee4d69f5fce4486a80fdaf4a4263"
 SRC_URI = "git://github.com/DoSOCSv2/DoSOCSv2.git;branch=dev \
            file://0001-setup-py-delete-the-depends-install.patch \
            file://0001-Fix-bugs-because-python-from-2.x-to-3.x.patch \
+           file://0001-Fix-a-error-as-fowllowing.patch \
+           file://0001-Fix-a-magic-error-as-following.patch \
           "
 
 S = "${WORKDIR}/git"
@@ -28,6 +30,7 @@ DEPENDS += "python3-jinja2-native \
 
 do_install_append() {
 	sed -i "s|scanner_nomos_path = /usr/local/|scanner_nomos_path = ${STAGING_DIR_NATIVE}/usr/|g" ${D}${PYTHON_SITEPACKAGES_DIR}/dosocs2/configtools.py
+	sed -i "s,path_to_magic_file,${STAGING_DATADIR_NATIVE}/misc/magic," ${D}${STAGING_LIBDIR}/${PYTHON_DIR}/site-packages/dosocs2/util.py
 }
 
 BBCLASSEXTEND = "native"

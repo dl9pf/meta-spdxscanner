@@ -1,0 +1,26 @@
+From c4ae0f2eb4a2a03329089419fe6f1b0cd05548f9 Mon Sep 17 00:00:00 2001
+From: Lei Maohui <leimaohui@cn.fujitsu.com>
+Date: Mon, 13 Nov 2017 15:43:51 +0900
+Subject: [PATCH] Fix a magic error as following:
+
+could not find any valid magic files!
+---
+ dosocs2/util.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/dosocs2/util.py b/dosocs2/util.py
+index aba864c..200688e 100644
+--- a/dosocs2/util.py
++++ b/dosocs2/util.py
+@@ -30,7 +30,7 @@ import uuid
+ import zipfile
+ 
+ import magic
+-
++magic = magic.Magic(magic_file="path_to_magic_file")
+ 
+ def bool_from_str(s):
+     if s.lower() == 'true':
+-- 
+2.7.4
+

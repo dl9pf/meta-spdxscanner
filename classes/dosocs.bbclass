@@ -29,10 +29,9 @@ export STAGING_LIBDIR
 # autoconf macros will use their internal default preference otherwise
 export PYTHON
 
-#do_spdx[depends] += "python3-dosocs2-init-native:do_dosocs2_init"
+do_spdx[depends] += "python3-dosocs2-init-native:do_dosocs2_init"
 do_spdx[depends] += "python3-dosocs2-native:do_populate_sysroot"
 
-SPDXOUTPUTDIR = "${WORKDIR}/spdx_output_dir"
 SPDXSSTATEDIR = "${WORKDIR}/spdx_sstate_dir"
 
 # If ${S} isn't actually the top-level source directory, set SPDX_S to point at
@@ -75,7 +74,8 @@ python do_spdx () {
     info['package_summary'] = (d.getVar('SUMMARY', True) or "")
     info['package_summary'] = info['package_summary'].replace("\n","")
     info['package_summary'] = info['package_summary'].replace("'"," ")
-    info['package_contains'] = (d.getVar('CONTAINED_BY', True) or "")
+    info['package_contains'] = (d.getVar('CONTAINED', True) or "")
+    info['package_static_link'] = (d.getVar('STATIC_LINK', True) or "")
 
     spdx_sstate_dir = (d.getVar('SPDXSSTATEDIR', True) or "")
     manifest_dir = (d.getVar('SPDX_DEPLOY_DIR', True) or "")
@@ -139,7 +139,6 @@ python do_get_spdx_s() {
     d.setVar('RECIPE_SYSROOT', d.getVar('RECIPE_SYSROOT'))
     d.setVar('RECIPE_SYSROOT_NATIVE', d.getVar('RECIPE_SYSROOT_NATIVE'))
 
-    ar_outdir = d.getVar('SPDX_TEMP_DIR')
     bb.note('Archiving the configured source...')
     pn = d.getVar('PN')
     # "gcc-source-${PV}" recipes don't have "do_configure"
@@ -150,10 +149,10 @@ python do_get_spdx_s() {
 
     # Change the WORKDIR to make do_configure run in another dir.
     d.setVar('WORKDIR', d.getVar('SPDX_TEMP_DIR'))
-    if bb.data.inherits_class('kernel-yocto', d):
-        bb.build.exec_func('do_kernel_configme', d)
-    if bb.data.inherits_class('cmake', d):
-        bb.build.exec_func('do_generate_toolchain_file', d)
+    #if bb.data.inherits_class('kernel-yocto', d):
+    #    bb.build.exec_func('do_kernel_configme', d)
+    #if bb.data.inherits_class('cmake', d):
+    #    bb.build.exec_func('do_generate_toolchain_file', d)
     bb.build.exec_func('do_unpack', d)
 }
 
@@ -243,8 +242,9 @@ def write_cached_spdx( info,sstatefile, ver_code ):
     sed_cmd = sed_replace(sed_cmd,"PackageDescription: ", 
         "<text>" + info['pn'] + " version " + info['pv'] + "</text>")
     for contain in info['package_contains'].split( ):
-        bb.note("lmh test contain = %s" % contain)
         sed_cmd = sed_insert(sed_cmd,"PackageComment:"," \\n\\n## Relationships\\nRelationship: " + info['pn'] + " CONTAINS " + contain)
+    for static_link in info['package_static_link'].split( ):
+        sed_cmd = sed_insert(sed_cmd,"PackageComment:"," \\n\\n## Relationships\\nRelationship: " + info['pn'] + " STATIC_LINK " + static_link)
     sed_cmd = sed_cmd + sstatefile
 
     subprocess.call("%s" % sed_cmd, shell=True)

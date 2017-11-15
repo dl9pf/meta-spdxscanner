@@ -12,11 +12,16 @@ SRC_URI = "ftp://ftp.astron.com/pub/file/file-${PV}.tar.gz \
            file://0001-Modified-the-magic.py-for-dosocs2-to-fix-the-error-a.patch \
           "
 
-SRC_URI[md5sum] = "8fb13e5259fe447e02c4a37bc7225add"
-SRC_URI[sha256sum] = "c4e3a8e44cb888c5e4b476e738503e37fb9de3b25a38c143e214bfc12109fc0b"
+SRC_URI[md5sum] = "e6a972d4e10d9e76407a432f4a63cd4c"
+SRC_URI[sha256sum] = "3735381563f69fb4239470b8c51b876a80425348b8285a7cded8b61d6b890eca"
 
 S="${WORKDIR}/file-${PV}/python"
 
-inherit setuptools python-dir
+inherit setuptools3 python3-dir
 
 BBCLASSEXTEND = "native"
+
+do_install_append(){
+    install -d ${D}${datadir}/misc/
+    install -m 644 ${WORKDIR}/file-${PV}/magic/Magdir/magic ${D}${datadir}/misc/magic
+}

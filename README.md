@@ -13,7 +13,7 @@ SPDX scanner(DoSOCSv2) support
   in some recipes which you want.
 
 ```
-  inherit spdx-dosocs
+  inherit dosocs
 ```
 
 - Redefine SPDX_DEPLOY_DIR in conf/local.conf:
