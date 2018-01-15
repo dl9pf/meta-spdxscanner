@@ -46,7 +46,7 @@ python do_spdx () {
     pn = d.getVar("PN")
     depends = d.getVar("DEPENDS")
     ## It's no necessary  to get spdx files for *-native  
-    if pn.find("-native") == -1:
+    if pn.find("-native") == -1 and pn.find("binutils-cross") == -1:
         PYTHON = "${STAGING_BINDIR_NATIVE}/${PYTHON_PN}-native/${PYTHON_PN}"
         os.environ['PYTHON'] = PYTHON
         depends = "%s python3-dosocs2-init-native" % depends
@@ -54,8 +54,8 @@ python do_spdx () {
     else:
         return None
 
-    ## gcc is too big to get spdx file.
-    if 'gcc' in d.getVar('PN', True):
+    ## gcc and kernel is too big to get spdx file.
+    if 'gcc' or 'linux-yocto' in d.getVar('PN', True):
         return None 
     
     info = {} 
@@ -131,8 +131,8 @@ python do_get_spdx_s() {
     if d.getVar('PN', True) == d.getVar('BPN', True) + "-native":
         return None
 
-    ## gcc is too big to get spdx file.
-    if 'gcc' in d.getVar('PN', True):
+    ## gcc and kernel is too big to get spdx file.
+    if 'gcc' or 'linux-yocto' in d.getVar('PN', True):
         return None
 
     # Forcibly expand the sysroot paths as we're about to change WORKDIR
@@ -160,7 +160,7 @@ python () {
     pn = d.getVar("PN")
     depends = d.getVar("DEPENDS")
 
-    if pn.find("-native") == -1:
+    if pn.find("-native") == -1 and pn.find("binutils-cross") == -1:
         depends = "%s python3-dosocs2-native" % depends
         d.setVar("DEPENDS", depends)
         bb.build.addtask('do_get_spdx_s','do_configure','do_patch', d)
