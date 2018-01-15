@@ -46,7 +46,7 @@ python do_spdx () {
     pn = d.getVar("PN")
     depends = d.getVar("DEPENDS")
     ## It's no necessary  to get spdx files for *-native  
-    if pn.find("-native") == -1:
+    if pn.find("-native") == -1 and pn.find("binutils-cross") == -1:
         PYTHON = "${STAGING_BINDIR_NATIVE}/${PYTHON_PN}-native/${PYTHON_PN}"
         os.environ['PYTHON'] = PYTHON
         depends = "%s python3-dosocs2-init-native" % depends
@@ -160,7 +160,7 @@ python () {
     pn = d.getVar("PN")
     depends = d.getVar("DEPENDS")
 
-    if pn.find("-native") == -1:
+    if pn.find("-native") == -1 and pn.find("binutils-cross") == -1:
         depends = "%s python3-dosocs2-native" % depends
         d.setVar("DEPENDS", depends)
         bb.build.addtask('do_get_spdx_s','do_configure','do_patch', d)
