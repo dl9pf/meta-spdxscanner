@@ -55,7 +55,7 @@ python do_spdx () {
         return None
 
     ## gcc and kernel is too big to get spdx file.
-    if 'gcc' or 'linux-yocto' in d.getVar('PN', True):
+    if ('gcc' or 'linux-yocto') in d.getVar('PN', True):
         return None 
     
     info = {} 
@@ -132,7 +132,7 @@ python do_get_spdx_s() {
         return None
 
     ## gcc and kernel is too big to get spdx file.
-    if 'gcc' or 'linux-yocto' in d.getVar('PN', True):
+    if ('gcc' or 'linux-yocto') in d.getVar('PN', True):
         return None
 
     # Forcibly expand the sysroot paths as we're about to change WORKDIR
