@@ -190,7 +190,7 @@ def write_cached_spdx( info,sstatefile, ver_code ):
     sed_cmd = sed_replace(sed_cmd,"PackageName: ",info['pn'])
     sed_cmd = sed_insert(sed_cmd,"PackageVersion: ",info['pv'])
     sed_cmd = sed_replace(sed_cmd,"PackageDownloadLocation: ",info['package_download_location'])
-    sed_cmd = sed_insert(sed_cmd,"PackageChecksum: ","PackageHomePage: " + info['package_homepage'])
+    sed_cmd = sed_replace(sed_cmd,"PackageChecksum: ","PackageHomePage: " + info['package_homepage'])
     sed_cmd = sed_replace(sed_cmd,"PackageSummary: ","<text>" + info['package_summary'] + "</text>")
     sed_cmd = sed_replace(sed_cmd,"PackageVerificationCode: ",ver_code)
     sed_cmd = sed_replace(sed_cmd,"PackageDescription: ", 
