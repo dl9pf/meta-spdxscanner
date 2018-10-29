@@ -1,5 +1,6 @@
 # meta-spdxscanner
-SPDX scanner(DoSOCSv2) support
+1. fossdriver support (recommend)
+2. SPDX scanner(DoSOCSv2) support
 
 # This layer depends on:
 
@@ -9,13 +10,40 @@ SPDX scanner(DoSOCSv2) support
 
 # How to use
 
+1.  fossdriver-host.class 
 - inherit the folowing class in your conf/local.conf for all of recipes or
   in some recipes which you want.
 
 ```
-  inherit dosocs
+  INHERIT += "fossdriver-host"
+  SPDX_DEPLOY_DIR = "${SPDX_DEST_DIR}"
+```
+Note
+  If you want to use fossdriver-host.bbclass, you have to make sure that  fossdriver has been installed on your host and it works wekk.
+  Please reference to https://github.com/fossology/fossdriver.
+  
+2. dosocs-host.bbclass
+- inherit the folowing class in your conf/local.conf for all of recipes or
+  in some recipes which you want.
+
+```
+  INHERIT += "dosocs-host"
+  SPDX_DEPLOY_DIR = "${SPDX_DEST_DIR}"
 ```
 
-- Redefine SPDX_DEPLOY_DIR in conf/local.conf:
-  SPDX_DEPLOY_DIR = "$PATH_DEST/$SPDX_DESTDIR"
+Note
+  - If you want to use fossdriver-host.bbclass, you have to make sure that DoSOCSv2 has been installed on your host and it works wekk.
+    Please reference to https://github.com/DoSOCSv2/DoSOCSv2.
+  - To make DoSOCSv2 support multi task, Add PostgreSQL configuration for DoSOCSv2.
+  
+3. dosocs.bbclass
+- inherit the folowing class in your conf/local.conf for all of recipes or
+  in some recipes which you want.
 
+```
+  INHERIT += "dosocs"
+  SPDX_DEPLOY_DIR = "${SPDX_DEST_DIR}"
+```
+
+Note 
+  - Default, DoSOCSv2 uses SQLite for database, so dosocs.bbclass doesn't support multi task of do_spdx.
