@@ -13,27 +13,9 @@
 # 2) By default,spdx files will be output to the path which is defined as[SPDX_DEPLOY_DIR] 
 #    in ./meta/conf/spdx-dosocs.conf.
 
-PYTHON_INHERIT = "${@bb.utils.contains('PN', '-native', '', 'python3-dir', d)}"
-PYTHON_INHERIT .= "${@bb.utils.contains('PACKAGECONFIG', 'python3', 'python3native', '', d)}"
-
-inherit ${PYTHON_INHERIT} python3-dir
-
-PYTHON = "${@bb.utils.contains('PN', '-native', '${STAGING_BINDIR_NATIVE}/${PYTHON_PN}-native/${PYTHON_PN}', '', d)}" 
-EXTRANATIVEPATH += "${PYTHON_PN}-native"
-
-# python-config and other scripts are using distutils modules
-# which we patch to access these variables
-export STAGING_INCDIR
-export STAGING_LIBDIR
-
-# autoconf macros will use their internal default preference otherwise
-export PYTHON
-
-do_spdx[depends] += "python3-dosocs2-init-native:do_dosocs2_init"
-do_spdx[depends] += "python3-dosocs2-native:do_populate_sysroot"
-
 SPDXSSTATEDIR = "${WORKDIR}/spdx_sstate_dir"
-
+LICENSELISTVERSION = "2.6"
+CREATOR_TOOL = "meta-spdxscanner"
 # If ${S} isn't actually the top-level source directory, set SPDX_S to point at
 # the real top-level directory.
 
@@ -43,21 +25,43 @@ python do_spdx () {
     import os, sys
     import json
 
-    pn = d.getVar("PN")
-    depends = d.getVar("DEPENDS")
-    ## It's no necessary  to get spdx files for *-native  
-    if pn.find("-native") == -1 and pn.find("binutils-cross") == -1:
-        PYTHON = "${STAGING_BINDIR_NATIVE}/${PYTHON_PN}-native/${PYTHON_PN}"
-        os.environ['PYTHON'] = PYTHON
-        depends = "%s python3-dosocs2-init-native" % depends
-        d.setVar("DEPENDS", depends)
-    else:
+    import shutil
+
+    pn = d.getVar('PN')
+    workdir_tmp = d.getVar('WORKDIR')
+
+    ## It's no necessary to get spdx files for *-native
+    if pn.find("-native") != -1 or pn.find("binutils-cross") != -1:
         return None
 
+    # Forcibly expand the sysroot paths as we're about to change WORKDIR
+    d.setVar('RECIPE_SYSROOT', d.getVar('RECIPE_SYSROOT'))
+    d.setVar('RECIPE_SYSROOT_NATIVE', d.getVar('RECIPE_SYSROOT_NATIVE'))
+
     ## gcc and kernel is too big to get spdx file.
-    if ('gcc' or 'linux-yocto') in d.getVar('PN', True):
-        return None 
-    
+    if ('gcc') in d.getVar('PN', True):
+        #invoke_dosocs2("/yocto/work002/fnst/leimh/community/gcc-7.3.0/","/yocto/work001/gcc-7.3.spdx",(d.getVar('WORKDIR', True) or ""))
+        return None
+    if bb.data.inherits_class('kernel', d):
+        #invoke_dosocs2("/yocto/work002/fnst/leimh/community/linux-4.14.44","/yocto/work001/linux-4.14.44.spdx",(d.getVar('WORKDIR', True) or ""))
+        return None
+
+    bb.note('Archiving the configured source...')
+    # "gcc-source-${PV}" recipes don't have "do_configure"
+    # task, so we need to run "do_preconfigure" instead
+    if pn.startswith("gcc-source-"):
+        d.setVar('WORKDIR', d.getVar('ARCHIVER_WORKDIR'))
+        bb.build.exec_func('do_preconfigure', d)
+
+    # Change the WORKDIR to make do_configure run in another dir.
+    d.setVar('WORKDIR', d.getVar('SPDX_TEMP_DIR'))
+    #if bb.data.inherits_class('kernel-yocto', d):
+    #    bb.build.exec_func('do_kernel_configme', d)
+    #if bb.data.inherits_class('cmake', d):
+    #    bb.build.exec_func('do_generate_toolchain_file', d)
+    bb.build.exec_func('do_unpack', d)
+  
+    d.setVar('WORKDIR', workdir_tmp)
     info = {} 
     info['workdir'] = (d.getVar('WORKDIR', True) or "")
     info['pn'] = (d.getVar( 'PN', True ) or "")
@@ -108,7 +112,7 @@ python do_spdx () {
 
         ## Get spdx file
         #bb.warn(' run_dosocs2 ...... ')
-        invoke_dosocs2(info['sourcedir'],sstatefile)
+        invoke_dosocs2(info['sourcedir'],sstatefile,info['workdir'])
         if get_cached_spdx( sstatefile ) != None:
             write_cached_spdx( info,sstatefile,cur_ver_code )
             ## CREATE MANIFEST(write to outfile )
@@ -117,66 +121,17 @@ python do_spdx () {
             bb.warn('Can\'t get the spdx file ' + info['pn'] + '. Please check your dosocs2.')
     d.setVar('WORKDIR', info['workdir'])
 }
-#python () {
-#    deps = ' python3-dosocs2-native:do_dosocs2_init'
-#    d.appendVarFlag('do_spdx', 'depends', deps)
-#}
 
-## Get the src after do_patch.
-python do_get_spdx_s() {
-    import shutil
+addtask spdx after do_patch before do_configure
 
-    pn = d.getVar('PN') 
-    ## It's no necessary to get spdx files for *-native
-    if d.getVar('PN', True) == d.getVar('BPN', True) + "-native":
-        return None
-
-    ## gcc and kernel is too big to get spdx file.
-    if ('gcc' or 'linux-yocto') in d.getVar('PN', True):
-        return None
-
-    # Forcibly expand the sysroot paths as we're about to change WORKDIR
-    d.setVar('RECIPE_SYSROOT', d.getVar('RECIPE_SYSROOT'))
-    d.setVar('RECIPE_SYSROOT_NATIVE', d.getVar('RECIPE_SYSROOT_NATIVE'))
-
-    bb.note('Archiving the configured source...')
-    pn = d.getVar('PN')
-    # "gcc-source-${PV}" recipes don't have "do_configure"
-    # task, so we need to run "do_preconfigure" instead
-    if pn.startswith("gcc-source-"):
-        d.setVar('WORKDIR', d.getVar('ARCHIVER_WORKDIR'))
-        bb.build.exec_func('do_preconfigure', d)
-
-    # Change the WORKDIR to make do_configure run in another dir.
-    d.setVar('WORKDIR', d.getVar('SPDX_TEMP_DIR'))
-    #if bb.data.inherits_class('kernel-yocto', d):
-    #    bb.build.exec_func('do_kernel_configme', d)
-    #if bb.data.inherits_class('cmake', d):
-    #    bb.build.exec_func('do_generate_toolchain_file', d)
-    bb.build.exec_func('do_unpack', d)
-}
-
-python () {
-    pn = d.getVar("PN")
-    depends = d.getVar("DEPENDS")
-
-    if pn.find("-native") == -1 and pn.find("binutils-cross") == -1:
-        depends = "%s python3-dosocs2-native" % depends
-        d.setVar("DEPENDS", depends)
-        bb.build.addtask('do_get_spdx_s','do_configure','do_patch', d)
-        bb.build.addtask('do_spdx','do_package', 'do_get_spdx_s', d)
-}
-#addtask get_spdx_s after do_patch before do_configure
-#addtask spdx after do_get_spdx_s before do_package
-
-def invoke_dosocs2( OSS_src_dir, spdx_file):
+def invoke_dosocs2( OSS_src_dir, spdx_file, workdir):
     import subprocess
     import string
     import json
     import codecs
 
-    path = os.getenv('PATH')
-    dosocs2_cmd = bb.utils.which(os.getenv('PATH'), "dosocs2")
+    
+    dosocs2_cmd = "/usr/local/bin/dosocs2"
     dosocs2_oneshot_cmd = dosocs2_cmd + " oneshot " + OSS_src_dir
     print(dosocs2_oneshot_cmd)
     try:
@@ -184,8 +139,9 @@ def invoke_dosocs2( OSS_src_dir, spdx_file):
                                                  stderr=subprocess.STDOUT,
                                                  shell=True)
     except subprocess.CalledProcessError as e:
-        bb.fatal("Could not invoke dosocs2 oneshot Command "
+        bb.warn("Could not invoke dosocs2 oneshot Command "
                  "'%s' returned %d:\n%s" % (dosocs2_oneshot_cmd, e.returncode, e.output))
+        return None
     dosocs2_output = dosocs2_output.decode('utf-8')
 
     f = codecs.open(spdx_file,'w','utf-8')
@@ -229,13 +185,17 @@ def write_cached_spdx( info,sstatefile, ver_code ):
         + info['pv'] + "</text>"
     sed_cmd = sed_replace(sed_cmd,"DocumentComment",spdx_DocumentComment)
     
+    ## Creator information
+    sed_cmd = sed_replace(sed_cmd,"Creator: ",info['creator']['Tool'])
+    sed_cmd = sed_replace(sed_cmd,"LicenseListVersion: ",info['license_list_version'])
+
     ## Package level information
     sed_cmd = sed_replace(sed_cmd,"PackageName: ",info['pn'])
-    sed_cmd = sed_insert(sed_cmd,"PackageVersion: ",info['pv'])
+    sed_cmd = sed_insert(sed_cmd,"PackageName: ", "PackageVersion: " + info['pv'])
     sed_cmd = sed_replace(sed_cmd,"PackageDownloadLocation: ",info['package_download_location'])
-    sed_cmd = sed_replace(sed_cmd,"PackageChecksum: ","PackageHomePage: " + info['package_homepage'])
+    sed_cmd = sed_replace(sed_cmd,"PackageHomePage: ",info['package_homepage'])
     sed_cmd = sed_replace(sed_cmd,"PackageSummary: ","<text>" + info['package_summary'] + "</text>")
-    sed_cmd = sed_replace(sed_cmd,"PackageVerificationCode: ",ver_code)
+    sed_cmd = sed_insert(sed_cmd,"PackageVerificationCode: ",ver_code)
     sed_cmd = sed_replace(sed_cmd,"PackageDescription: ", 
         "<text>" + info['pn'] + " version " + info['pv'] + "</text>")
     for contain in info['package_contains'].split( ):
