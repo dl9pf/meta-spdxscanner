@@ -32,7 +32,7 @@ Note
 ```
 
 Note
-  - If you want to use fossdriver-host.bbclass, you have to make sure that DoSOCSv2 has been installed on your host and it works wekk.
+  - If you want to use dosocs-host.bbclass, you have to make sure that DoSOCSv2 has been installed on your host and it works wekk.
     Please reference to https://github.com/DoSOCSv2/DoSOCSv2.
   - To make DoSOCSv2 support multi task, Add PostgreSQL configuration for DoSOCSv2.
   
