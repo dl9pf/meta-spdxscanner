@@ -19,7 +19,7 @@
   SPDX_DEPLOY_DIR = "${SPDX_DEST_DIR}"
 ```
 Note
-  If you want to use fossdriver-host.bbclass, you have to make sure that  fossdriver has been installed on your host and it works wekk.
+  If you want to use fossdriver-host.bbclass, you have to make sure that  fossdriver has been installed on your host and it works well.
   Please reference to https://github.com/fossology/fossdriver.
   
 2. dosocs-host.bbclass
@@ -32,7 +32,7 @@ Note
 ```
 
 Note
-  - If you want to use dosocs-host.bbclass, you have to make sure that DoSOCSv2 has been installed on your host and it works wekk.
+  - If you want to use dosocs-host.bbclass, you have to make sure that DoSOCSv2 has been installed on your host and it works well.
     Please reference to https://github.com/DoSOCSv2/DoSOCSv2.
   - To make DoSOCSv2 support multi task, Add PostgreSQL configuration for DoSOCSv2.
   
