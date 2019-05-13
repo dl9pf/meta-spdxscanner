@@ -57,16 +57,6 @@ python do_spdx () {
     spdx_temp_dir = os.path.join(spdx_workdir, "temp")
     temp_dir = os.path.join(d.getVar('WORKDIR'), "temp")
     
-    bb.note('SPDX: Archiving the patched source...')
-    if os.path.isdir( spdx_temp_dir ):
-        for f_dir, f in list_files( spdx_temp_dir ):
-            temp_file = os.path.join(spdx_temp_dir,f_dir,f)
-            shutil.copy(temp_file, temp_dir)
-        shutil.rmtree(spdx_temp_dir)
-    d.setVar('WORKDIR', spdx_workdir)
-    tar_name = spdx_create_tarball(d, d.getVar('WORKDIR'), 'patched', spdx_outdir)
-
-
     info = {} 
     info['workdir'] = (d.getVar('WORKDIR', True) or "")
     info['pn'] = (d.getVar( 'PN', True ) or "")
@@ -85,47 +75,56 @@ python do_spdx () {
     info['package_summary'] = info['package_summary'].replace("'"," ")
     info['package_contains'] = (d.getVar('CONTAINED', True) or "")
     info['package_static_link'] = (d.getVar('STATIC_LINK', True) or "")
-    
+   
     manifest_dir = (d.getVar('SPDX_DEPLOY_DIR', True) or "")
     info['outfile'] = os.path.join(manifest_dir, info['pn'] + "-" + info['pv'] + ".spdx" )
-    sstatefile = os.path.join(spdx_outdir, 
-        info['pn'] + "-" + info['pv'] + ".spdx" )
-
+    sstatefile = os.path.join(spdx_outdir, info['pn'] + "-" + info['pv'] + ".spdx" )
+    
+    # if spdx has been exist
+    if os.path.exists( info['outfile'] ):
+        bb.note(info['pn'] + "spdx file has been exist, do nothing")
+        return
+    if os.path.exists( sstatefile ):
+        bb.note(info['pn'] + "spdx file has been exist, do nothing")
+        create_manifest(info,sstatefile)
+        return
+    bb.note('SPDX: Archiving the patched source...')
+    if os.path.isdir( spdx_temp_dir ):
+        for f_dir, f in list_files( spdx_temp_dir ):
+            temp_file = os.path.join(spdx_temp_dir,f_dir,f)
+            shutil.copy(temp_file, temp_dir)
+        shutil.rmtree(spdx_temp_dir)
+    d.setVar('WORKDIR', spdx_workdir)
+    tar_name = spdx_create_tarball(d, d.getVar('WORKDIR'), 'patched', spdx_outdir)
     ## get everything from cache.  use it to decide if 
     ## something needs to be rerun
     if not os.path.exists( spdx_outdir ):
         bb.utils.mkdirhier( spdx_outdir )
-   
     cur_ver_code = get_ver_code( spdx_workdir ).split()[0] 
-    cache_cur = False
-    if os.path.exists( sstatefile ):
-        bb.warn(info['pn'] + "has been exist, do nothing")
-        cache_cur = True
+    ## Get spdx file
+    bb.note(' run fossdriver ...... ')
+    if not os.path.isfile( tar_name ):
+        bb.warn(info['pn'] + "has no source, do nothing")
+        return
+    invoke_fossdriver(tar_name,sstatefile)
+    if get_cached_spdx( sstatefile ) != None:
+        write_cached_spdx( info,sstatefile,cur_ver_code )
+        ## CREATE MANIFEST(write to outfile )
         create_manifest(info,sstatefile)
-    if not cache_cur:
-        ## Get spdx file
-        bb.note(' run fossdriver ...... ')
-        if not os.path.isfile( tar_name ):
-            bb.warn(info['pn'] + "has no source, do nothing")
-            return
-
-        invoke_fossdriver(tar_name,sstatefile)
-        if get_cached_spdx( sstatefile ) != None:
-            write_cached_spdx( info,sstatefile,cur_ver_code )
-            ## CREATE MANIFEST(write to outfile )
-            create_manifest(info,sstatefile)
-        else:
-            bb.warn('Can\'t get the spdx file ' + info['pn'] + '. Please check your.')
+    else:
+        bb.warn('Can\'t get the spdx file ' + info['pn'] + '. Please check your.')
 }
-addtask do_spdx_get_src after do_patch
+#addtask do_spdx_get_src after do_patch
+#addtask do_spdx after do_spdx_get_src
+#addtask spdx after do_patch before do_install
+addtask do_spdx_get_src after do_unpack
 addtask do_spdx after do_spdx_get_src
-addtask spdx after do_patch before do_install
 
 def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
     """
     create the tarball from srcdir
     """
-    import tarfile
+    import tarfile, shutil
     # Make sure we are only creating a single tarball for gcc sources
     #if (d.getVar('SRC_URI') == ""):
     #    return
@@ -146,6 +145,7 @@ def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
     tar = tarfile.open(tarname, 'w:gz')
     tar.add(srcdir, arcname=os.path.basename(srcdir))
     tar.close()
+    shutil.rmtree(srcdir)
     return tarname
 
 # Run do_unpack and do_patch
@@ -193,18 +193,23 @@ def invoke_fossdriver(tar_file, spdx_file):
     from fossdriver.config import FossConfig
     from fossdriver.server import FossServer
     from fossdriver.tasks import (CreateFolder, Upload, Scanners, Copyright, Reuse, BulkTextMatch, SPDXTV)
-
     #del os.environ['http_proxy']
     #del os.environ['https_proxy']
     config = FossConfig()
     configPath = os.path.join(os.path.expanduser('~'),".fossdriverrc")
     config.configure(configPath)
-
     server = FossServer(config)
     server.Login()
     bb.note("invoke_fossdriver : tar_file = %s " % tar_file)
-    Upload(server, tar_file, "Software Repository").run()
-    Scanners(server, tar_file, "Software Repository").run()
+    if (Reuse(server, tar_file, "Software Repository", tar_file, "Software Repository").run()  != True):
+        bb.note("This OSS has not been scanned. So upload it to fosslpgy server.")
+        Upload(server, tar_file, "Software Repository").run()
+        try:
+            output = Scanners(server, tar_file, "Software Repository").run()
+        except:
+            Upload(server, tar_file, "Software Repository").run()
+    else:
+        bb.note("This OSS has been scanned. Use the last result.")
     SPDXTV(server, tar_file, "Software Repository", spdx_file).run()
 
 def create_manifest(info,sstatefile):
@@ -253,7 +258,7 @@ def write_cached_spdx( info,sstatefile, ver_code ):
     sed_cmd = sed_insert(sed_cmd,"PackageName: ", "PackageVersion: " + info['pv'])
     sed_cmd = sed_replace(sed_cmd,"PackageDownloadLocation: ",info['package_download_location'])
     sed_cmd = sed_insert(sed_cmd,"PackageDownloadLocation: ", "PackageHomePage: " + info['package_homepage'])
-    sed_cmd = sed_insert(sed_cmd,"PackageHomePage: ", "PackageSummary: " + "<text>" + info['package_summary'] + "</text>")
+    sed_cmd = sed_insert(sed_cmd,"PackageDownloadLocation: ", "PackageSummary: " + "<text>" + info['package_summary'] + "</text>")
     sed_cmd = sed_replace(sed_cmd,"PackageVerificationCode: ",ver_code)
     sed_cmd = sed_insert(sed_cmd,"PackageVerificationCode: ", "PackageDescription: " + 
         "<text>" + info['pn'] + " version " + info['pv'] + "</text>")
