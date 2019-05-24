@@ -14,6 +14,17 @@
 #    in ./meta/conf/spdx-dosocs.conf.
 
 
+SPDXEPENDENCY += "${PATCHTOOL}-native:do_populate_sysroot"
+SPDXEPENDENCY += " wget-native:do_populate_sysroot"
+SPDXEPENDENCY += " subversion-native:do_populate_sysroot"
+SPDXEPENDENCY += " git-native:do_populate_sysroot"
+SPDXEPENDENCY += " lz4-native:do_populate_sysroot"
+SPDXEPENDENCY += " lzip-native:do_populate_sysroot"
+SPDXEPENDENCY += " xz-native:do_populate_sysroot"
+SPDXEPENDENCY += " unzip-native:do_populate_sysroot"
+SPDXEPENDENCY += " xz-native:do_populate_sysroot"
+SPDXEPENDENCY += " quilt-native:do_populate_sysroot"
+
 SPDX_TOPDIR ?= "${WORKDIR}/spdx_sstate_dir"
 SPDX_OUTDIR = "${SPDX_TOPDIR}/${TARGET_SYS}/${PF}/"
 SPDX_WORKDIR = "${WORKDIR}/spdx_temp/"
@@ -88,6 +99,9 @@ python do_spdx () {
         bb.note(info['pn'] + "spdx file has been exist, do nothing")
         create_manifest(info,sstatefile)
         return
+
+    spdx_get_src(d)
+
     bb.note('SPDX: Archiving the patched source...')
     if os.path.isdir( spdx_temp_dir ):
         for f_dir, f in list_files( spdx_temp_dir ):
@@ -114,11 +128,8 @@ python do_spdx () {
     else:
         bb.warn('Can\'t get the spdx file ' + info['pn'] + '. Please check your.')
 }
-#addtask do_spdx_get_src after do_patch
-#addtask do_spdx after do_spdx_get_src
-#addtask spdx after do_patch before do_install
-addtask do_spdx_get_src after do_unpack
-addtask do_spdx after do_spdx_get_src
+
+addtask do_spdx before do_fetch
 
 def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
     """
@@ -149,9 +160,8 @@ def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
     return tarname
 
 # Run do_unpack and do_patch
-python do_spdx_get_src() {
+def spdx_get_src(d):
     import shutil
-    sdpx_outdir = d.getVar('SPDX_OUTDIR')
     spdx_workdir = d.getVar('SPDX_WORKDIR')
     spdx_sysroot_native = d.getVar('STAGING_DIR_NATIVE')
     pn = d.getVar('PN')
@@ -182,7 +192,6 @@ python do_spdx_get_src() {
     if not os.path.exists( spdx_workdir ):
         bb.utils.mkdirhier(spdx_workdir)
 
-}
 
 def invoke_fossdriver(tar_file, spdx_file):
     import os
@@ -193,8 +202,8 @@ def invoke_fossdriver(tar_file, spdx_file):
     from fossdriver.config import FossConfig
     from fossdriver.server import FossServer
     from fossdriver.tasks import (CreateFolder, Upload, Scanners, Copyright, Reuse, BulkTextMatch, SPDXTV)
-    #del os.environ['http_proxy']
-    #del os.environ['https_proxy']
+    if 'http_proxy' in os.environ:
+        del os.environ['http_proxy']
     config = FossConfig()
     configPath = os.path.join(os.path.expanduser('~'),".fossdriverrc")
     config.configure(configPath)
@@ -202,15 +211,25 @@ def invoke_fossdriver(tar_file, spdx_file):
     server.Login()
     bb.note("invoke_fossdriver : tar_file = %s " % tar_file)
     if (Reuse(server, tar_file, "Software Repository", tar_file, "Software Repository").run()  != True):
-        bb.note("This OSS has not been scanned. So upload it to fosslpgy server.")
-        Upload(server, tar_file, "Software Repository").run()
-        try:
-            output = Scanners(server, tar_file, "Software Repository").run()
-        except:
-            Upload(server, tar_file, "Software Repository").run()
+        bb.note("This OSS has not been scanned. So upload it to fossology server.")
+        if (Upload(server, tar_file, "Software Repository").run() != True):
+                bb.warn("%s Upload failed, try again!" %  tar_file)
+                if (Upload(server, tar_file, "Software Repository").run() != True):
+                    bb.warn("%s  Upload fail.Please check your fossology server." % tar_file)
+                    return False
+                else:
+                    if (Scanners(server, tar_file, "Software Repository").run() != True):
+                        bb.warn("%s scanner failed, try again!" % tar_file)
+                        if (Scanners(server, tar_file, "Software Repository").run() != True):
+                             bb.warn("%s scanner fail.Please check your fossology server." % tar_file)
+                             return False
     else:
         bb.note("This OSS has been scanned. Use the last result.")
-    SPDXTV(server, tar_file, "Software Repository", spdx_file).run()
+    if (SPDXTV(server, tar_file, "Software Repository", spdx_file).run() == False):
+        bb.warn("%s SPDXTV failed, try again!" % tar_file)
+        if (SPDXTV(server, tar_file, "Software Repository", spdx_file).run() == False):
+            bb.warn("%s scanner fail.Please check your fossology server." % tar_file)
+            return False
 
 def create_manifest(info,sstatefile):
     import shutil
@@ -328,3 +347,6 @@ def get_ver_code( dirname ):
     ver_code = hash_string( ver_code_string )
     return ver_code
 
+do_spdx[depends] = "${SPDXEPENDENCY}"
+
+EXPORT_FUNCTIONS do_spdx
