@@ -131,7 +131,7 @@ python do_spdx () {
         bb.warn('Can\'t get the spdx file ' + info['pn'] + '. Please check your.')
 }
 
-addtask do_spdx before do_fetch
+addtask do_spdx before do_unpack after do_fetch
 
 def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
     """
@@ -197,6 +197,7 @@ def spdx_get_src(d):
 
 def invoke_fossdriver(tar_file, spdx_file):
     import os
+    import time
     
     (work_dir, tar_file) = os.path.split(tar_file)
     os.chdir(work_dir)
@@ -214,24 +215,43 @@ def invoke_fossdriver(tar_file, spdx_file):
     bb.note("invoke_fossdriver : tar_file = %s " % tar_file)
     if (Reuse(server, tar_file, "Software Repository", tar_file, "Software Repository").run()  != True):
         bb.note("This OSS has not been scanned. So upload it to fossology server.")
-        if (Upload(server, tar_file, "Software Repository").run() != True):
+        i = 0
+        while i < 5:
+            if (Upload(server, tar_file, "Software Repository").run() != True):
                 bb.warn("%s Upload failed, try again!" %  tar_file)
-                if (Upload(server, tar_file, "Software Repository").run() != True):
-                    bb.warn("%s  Upload fail.Please check your fossology server." % tar_file)
-                    return False
-                else:
+                i += 1
+            else:
+                i = 0
+                while i < 10:                
                     if (Scanners(server, tar_file, "Software Repository").run() != True):
                         bb.warn("%s scanner failed, try again!" % tar_file)
-                        if (Scanners(server, tar_file, "Software Repository").run() != True):
-                             bb.warn("%s scanner fail.Please check your fossology server." % tar_file)
-                             return False
+                        i+= 1
+                    else:
+                        i = 0
+                        while i < 10:
+                            if (SPDXTV(server, tar_file, "Software Repository", spdx_file).run() == False):
+                                time.sleep(1)
+                                bb.warn("%s SPDXTV failed, try again!" % tar_file)
+                                i += 1
+                            else:
+                                return True
+                        bb.warn("%s SPDXTV failed, Please check your fossology server." % tar_file)
+                        return False
+                bb.warn("%s Scanners failed, Please check your fossology server." % tar_file)
+                return False
+        bb.warn("%s  Upload fail.Please check your fossology server." % tar_file)
+        return False
     else:
-        bb.note("This OSS has been scanned. Use the last result.")
-    if (SPDXTV(server, tar_file, "Software Repository", spdx_file).run() == False):
-        bb.warn("%s SPDXTV failed, try again!" % tar_file)
-        if (SPDXTV(server, tar_file, "Software Repository", spdx_file).run() == False):
-            bb.warn("%s scanner fail.Please check your fossology server." % tar_file)
-            return False
+        i = 0
+        while i < 10:
+            if (SPDXTV(server, tar_file, "Software Repository", spdx_file).run() == False):
+                time.sleep(1)
+                bb.warn("%s SPDXTV failed, try again!" % tar_file)
+                i += 1
+            else:
+                return True
+        bb.warn("%s SPDXTV failed, Please check your fossology server." % tar_file)
+        return False
 
 def create_manifest(info,sstatefile):
     import shutil
