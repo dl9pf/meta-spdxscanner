@@ -35,11 +35,9 @@ do_spdx[dirs] = "${WORKDIR}"
 
 LICENSELISTVERSION = "2.6"
 CREATOR_TOOL = "meta-spdxscanner"
+
 # If ${S} isn't actually the top-level source directory, set SPDX_S to point at
 # the real top-level directory.
-
-#do_spdx[depends] += "python3-fossdriver-native:do_populate_sysroot"
-
 SPDX_S ?= "${S}"
 
 python do_spdx () {
@@ -194,10 +192,10 @@ def spdx_get_src(d):
     if not os.path.exists( spdx_workdir ):
         bb.utils.mkdirhier(spdx_workdir)
 
-
 def invoke_fossdriver(tar_file, spdx_file):
     import os
     import time
+    delaytime = 20
     
     (work_dir, tar_file) = os.path.split(tar_file)
     os.chdir(work_dir)
@@ -219,19 +217,21 @@ def invoke_fossdriver(tar_file, spdx_file):
         while i < 5:
             if (Upload(server, tar_file, "Software Repository").run() != True):
                 bb.warn("%s Upload failed, try again!" %  tar_file)
+                time.sleep(delaytime)
                 i += 1
             else:
                 i = 0
                 while i < 10:                
                     if (Scanners(server, tar_file, "Software Repository").run() != True):
                         bb.warn("%s scanner failed, try again!" % tar_file)
+                        time.sleep(delaytime)
                         i+= 1
                     else:
                         i = 0
                         while i < 10:
                             if (SPDXTV(server, tar_file, "Software Repository", spdx_file).run() == False):
-                                time.sleep(1)
                                 bb.warn("%s SPDXTV failed, try again!" % tar_file)
+                                time.sleep(delaytime)
                                 i += 1
                             else:
                                 return True
@@ -248,6 +248,7 @@ def invoke_fossdriver(tar_file, spdx_file):
                 time.sleep(1)
                 bb.warn("%s SPDXTV failed, try again!" % tar_file)
                 i += 1
+                time.sleep(delaytime)
             else:
                 return True
         bb.warn("%s SPDXTV failed, Please check your fossology server." % tar_file)
