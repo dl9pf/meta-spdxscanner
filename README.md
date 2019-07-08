@@ -1,8 +1,8 @@
 # meta-spdxscanner
 
 meta-spdxscanner supports the following SPDX create tools.
-1. fossdriver support (recommend)
-2. SPDX scanner(DoSOCSv2) support (Not recommended)
+1. fossdriver (recommend)
+2. DoSOCSv2 (Not recommended)
 
 # This layer depends on:
 
