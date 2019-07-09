@@ -22,3 +22,5 @@
   INHERIT += "fossdriver-host"
   SPDX_DEPLOY_DIR = "${SPDX_DEST_DIR}"
 ```
+Note
+- Please use meta-spdxscanner/classes/nopackages.bbclass instead of oe-core. Because there is no necessary to create spdx files for *-native.
