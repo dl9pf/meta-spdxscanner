@@ -21,8 +21,9 @@ meta-spdxscanner supports the following SPDX create tools.
   SPDX_DEPLOY_DIR = "${SPDX_DEST_DIR}"
 ```
 Note
-  If you want to use fossdriver-host.bbclass, you have to make sure that fossology server and fossdriver has been installed on your host and make sure it works well.
+- If you want to use fossdriver-host.bbclass, you have to make sure that fossology server and fossdriver has been installed on your host and make sure it works well.
   Please reference to https://hub.docker.com/r/fossology/fossology/ and https://github.com/fossology/fossdriver.
+- Please use meta-spdxscanner/classes/nopackages.bbclass instead of oe-core. Because there is no necessary to create spdx files for *-native.
   
 2. dosocs-host.bbclass (Not recommended)
 - inherit the folowing class in your conf/local.conf for all of recipes or
