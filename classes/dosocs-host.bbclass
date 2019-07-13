@@ -131,7 +131,7 @@ def invoke_dosocs2( OSS_src_dir, spdx_file, workdir):
     import codecs
 
     
-    dosocs2_cmd = "/usr/local/bin/dosocs2"
+    dosocs2_cmd = "/usr/bin/dosocs2"
     dosocs2_oneshot_cmd = dosocs2_cmd + " oneshot " + OSS_src_dir
     print(dosocs2_oneshot_cmd)
     try:

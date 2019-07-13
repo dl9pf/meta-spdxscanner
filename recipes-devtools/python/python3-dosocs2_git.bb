@@ -33,4 +33,6 @@ do_install_append() {
 	sed -i "s,path_to_magic_file,${STAGING_DATADIR_NATIVE}/misc/magic," ${D}${STAGING_LIBDIR}/${PYTHON_DIR}/site-packages/dosocs2/util.py
 }
 
+RDEPENDS_${PN}-native = "fossology-nomos-native"
+
 BBCLASSEXTEND = "native"

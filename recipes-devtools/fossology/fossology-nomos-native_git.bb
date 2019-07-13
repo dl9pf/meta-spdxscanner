@@ -25,5 +25,5 @@ do_install() {
         oe_runmake install \
                 DESTDIR="${D}" \
                 PREFIX="${prefix}" \
-                SBINDIR="${D}${sbindir}"
+                SBINDIR="${sbindir}"
 }

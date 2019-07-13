@@ -19,12 +19,13 @@ DESCRIPTION = "\
 "
 HOMEPAGE = "http://www.postgresql.com"
 LICENSE = "BSD"
-DEPENDS = "tcl-native libxml2-native libxslt-native perl-native"
+DEPENDS = "tcl-native libxml2-native libxslt-native perl-native openssl-native"
 
 LIC_FILES_CHKSUM = "file://COPYRIGHT;md5=81b69ddb31a8be66baafd14a90146ee2"
 
-SRC_URI[md5sum] = "2fee03f2034034dbfcb3321a0bb0f829"
-SRC_URI[sha256sum] = "e3eb51d045c180b03d2de1f0c3af9356e10be49448e966ca01dfc2c6d1cc9d23"
+SRC_URI[md5sum] = "096f75f97934b11f7f7123a30163058d"
+SRC_URI[sha256sum] = "0d009c08b0c82b12484950bba10ae8bfd6f0c7bafd8f086ab756c483dd231d9b"
+
 
 SRC_URI = "http://ftp.postgresql.org/pub/source/v${PV}/${BP}.tar.bz2 \
     file://0001-Use-pkg-config-for-libxml2-detection.patch \

@@ -42,10 +42,12 @@ python do_spdx () {
 
     # glibc-locale: do_fetch, do_unpack and do_patch tasks have been deleted,
     # so avoid archiving source here.
+    if pn.endswith('-native'):
+        return
     if pn.startswith('glibc-locale'):
         return
-    if (d.getVar('BPN') == "linux-yocto"):
-        return
+    #if (d.getVar('BPN') == "linux-yocto"):
+    #    return
 
     # We just archive gcc-source for all the gcc related recipes
     if d.getVar('BPN') in ['gcc', 'libgcc']:
@@ -134,17 +136,27 @@ def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
     # work-shared location. Use os.path.realpath to make sure
     # that we archive the actual directory and not just the link.
     srcdir = os.path.realpath(srcdir)
-
+    print(""+ar_outdir)
     bb.utils.mkdirhier(ar_outdir)
+    
     if suffix:
         filename = '%s-%s.tar.gz' % (d.getVar('PF'), suffix)
     else:
         filename = '%s.tar.gz' % d.getVar('PF')
     tarname = os.path.join(ar_outdir, filename)
 
+    EXCLUDE_FILES = ['.git', 'build']
+    def filter_dotgit(tarinfo):
+        tin = tarinfo.name
+        for i in EXCLUDE_FILES:
+            if i in tin:
+                print("ignore tarfile:"+tin+"")
+                return None
+        print("use tarfile:"+tin+"")
+        return tarinfo
     bb.note('Creating %s' % tarname)
     tar = tarfile.open(tarname, 'w:gz')
-    tar.add(srcdir, arcname=os.path.basename(srcdir))
+    tar.add(srcdir, arcname=os.path.basename(srcdir), filter=filter_dotgit)
     tar.close()
     return tarname
 
