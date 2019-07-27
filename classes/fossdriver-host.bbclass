@@ -57,6 +57,12 @@ python do_spdx () {
         return
     if (d.getVar('BPN') == "linux-yocto"):
         return
+    if (d.getVar('PN') == "libtool-cross"):
+        return
+    if (d.getVar('PN') == "libgcc-initial"):
+        return
+    if (d.getVar('PN') == "shadow-sysroot"):
+        return
 
     # We just archive gcc-source for all the gcc related recipes
     if d.getVar('BPN') in ['gcc', 'libgcc']:
