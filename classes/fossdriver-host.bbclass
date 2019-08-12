@@ -64,6 +64,7 @@ python do_spdx () {
     if (d.getVar('PN') == "shadow-sysroot"):
         return
 
+
     # We just archive gcc-source for all the gcc related recipes
     if d.getVar('BPN') in ['gcc', 'libgcc']:
         bb.debug(1, 'spdx: There is bug in scan of %s is, do nothing' % pn)
@@ -92,13 +93,21 @@ python do_spdx () {
     info['package_summary'] = info['package_summary'].replace("'"," ")
     info['package_contains'] = (d.getVar('CONTAINED', True) or "")
     info['package_static_link'] = (d.getVar('STATIC_LINK', True) or "")
-   
+    info['modified'] = "false"
+    srcuri = d.getVar("SRC_URI", False).split()
+    length = len("file://")
+    for item in srcuri:
+        if item.startswith("file://"):
+            item = item[length:]
+            if item.endswith(".patch") or item.endswith(".diff"):
+                info['modified'] = "true"
+
     manifest_dir = (d.getVar('SPDX_DEPLOY_DIR', True) or "")
     info['outfile'] = os.path.join(manifest_dir, info['pn'] + "-" + info['pv'] + ".spdx" )
     sstatefile = os.path.join(spdx_outdir, info['pn'] + "-" + info['pv'] + ".spdx" )
     
     # if spdx has been exist
-    if os.path.exists( info['outfile'] ):
+    if os.path.exists(info['outfile']):
         bb.note(info['pn'] + "spdx file has been exist, do nothing")
         return
     if os.path.exists( sstatefile ):
@@ -109,8 +118,8 @@ python do_spdx () {
     spdx_get_src(d)
 
     bb.note('SPDX: Archiving the patched source...')
-    if os.path.isdir( spdx_temp_dir ):
-        for f_dir, f in list_files( spdx_temp_dir ):
+    if os.path.isdir(spdx_temp_dir):
+        for f_dir, f in list_files(spdx_temp_dir):
             temp_file = os.path.join(spdx_temp_dir,f_dir,f)
             shutil.copy(temp_file, temp_dir)
         shutil.rmtree(spdx_temp_dir)
@@ -118,16 +127,16 @@ python do_spdx () {
     tar_name = spdx_create_tarball(d, d.getVar('WORKDIR'), 'patched', spdx_outdir)
     ## get everything from cache.  use it to decide if 
     ## something needs to be rerun
-    if not os.path.exists( spdx_outdir ):
-        bb.utils.mkdirhier( spdx_outdir )
-    cur_ver_code = get_ver_code( spdx_workdir ).split()[0] 
+    if not os.path.exists(spdx_outdir):
+        bb.utils.mkdirhier(spdx_outdir)
+    cur_ver_code = get_ver_code(spdx_workdir).split()[0] 
     ## Get spdx file
     bb.note(' run fossdriver ...... ')
-    if not os.path.isfile( tar_name ):
+    if not os.path.isfile(tar_name):
         bb.warn(info['pn'] + "has no source, do nothing")
         return
     invoke_fossdriver(tar_name,sstatefile)
-    if get_cached_spdx( sstatefile ) != None:
+    if get_cached_spdx(sstatefile) != None:
         write_cached_spdx( info,sstatefile,cur_ver_code )
         ## CREATE MANIFEST(write to outfile )
         create_manifest(info,sstatefile)
@@ -235,6 +244,7 @@ def invoke_fossdriver(tar_file, spdx_file):
                     else:
                         i = 0
                         while i < 10:
+                            Copyright(server, tar_file, "Software Repository").run()
                             if (SPDXTV(server, tar_file, "Software Repository", spdx_file).run() == False):
                                 bb.warn("%s SPDXTV failed, try again!" % tar_file)
                                 time.sleep(delaytime)
@@ -302,18 +312,19 @@ def write_cached_spdx( info,sstatefile, ver_code ):
     sed_cmd = sed_replace(sed_cmd,"Creator: ",info['creator']['Tool'])
 
     ## Package level information
-    sed_cmd = sed_replace(sed_cmd,"PackageName: ",info['pn'])
-    sed_cmd = sed_insert(sed_cmd,"PackageName: ", "PackageVersion: " + info['pv'])
-    sed_cmd = sed_replace(sed_cmd,"PackageDownloadLocation: ",info['package_download_location'])
-    sed_cmd = sed_insert(sed_cmd,"PackageDownloadLocation: ", "PackageHomePage: " + info['package_homepage'])
-    sed_cmd = sed_insert(sed_cmd,"PackageDownloadLocation: ", "PackageSummary: " + "<text>" + info['package_summary'] + "</text>")
-    sed_cmd = sed_replace(sed_cmd,"PackageVerificationCode: ",ver_code)
-    sed_cmd = sed_insert(sed_cmd,"PackageVerificationCode: ", "PackageDescription: " + 
+    sed_cmd = sed_replace(sed_cmd, "PackageName: ", info['pn'])
+    sed_cmd = sed_insert(sed_cmd, "PackageName: ", "PackageVersion: " + info['pv'])
+    sed_cmd = sed_replace(sed_cmd, "PackageDownloadLocation: ",info['package_download_location'])
+    sed_cmd = sed_insert(sed_cmd, "PackageDownloadLocation: ", "PackageHomePage: " + info['package_homepage'])
+    sed_cmd = sed_insert(sed_cmd, "PackageDownloadLocation: ", "PackageSummary: " + "<text>" + info['package_summary'] + "</text>")
+    sed_cmd = sed_insert(sed_cmd, "PackageDownloadLocation: ", "modification record : " + info['modified'])
+    sed_cmd = sed_replace(sed_cmd, "PackageVerificationCode: ",ver_code)
+    sed_cmd = sed_insert(sed_cmd, "PackageVerificationCode: ", "PackageDescription: " + 
         "<text>" + info['pn'] + " version " + info['pv'] + "</text>")
     for contain in info['package_contains'].split( ):
-        sed_cmd = sed_insert(sed_cmd,"PackageComment:"," \\n\\n## Relationships\\nRelationship: " + info['pn'] + " CONTAINS " + contain)
+        sed_cmd = sed_insert(sed_cmd, "PackageComment:"," \\n\\n## Relationships\\nRelationship: " + info['pn'] + " CONTAINS " + contain)
     for static_link in info['package_static_link'].split( ):
-        sed_cmd = sed_insert(sed_cmd,"PackageComment:"," \\n\\n## Relationships\\nRelationship: " + info['pn'] + " STATIC_LINK " + static_link)
+        sed_cmd = sed_insert(sed_cmd, "PackageComment:"," \\n\\n## Relationships\\nRelationship: " + info['pn'] + " STATIC_LINK " + static_link)
     sed_cmd = sed_cmd + sstatefile
 
     subprocess.call("%s" % sed_cmd, shell=True)
@@ -322,27 +333,27 @@ def is_work_shared(d):
     pn = d.getVar('PN')
     return bb.data.inherits_class('kernel', d) or pn.startswith('gcc-source')
 
-def remove_dir_tree( dir_name ):
+def remove_dir_tree(dir_name):
     import shutil
     try:
-        shutil.rmtree( dir_name )
+        shutil.rmtree(dir_name)
     except:
         pass
 
-def remove_file( file_name ):
+def remove_file(file_name):
     try:
-        os.remove( file_name )
+        os.remove(file_name)
     except OSError as e:
         pass
 
-def list_files( dir ):
-    for root, subFolders, files in os.walk( dir ):
+def list_files(dir ):
+    for root, subFolders, files in os.walk(dir):
         for f in files:
-            rel_root = os.path.relpath( root, dir )
+            rel_root = os.path.relpath(root, dir)
             yield rel_root, f
     return
 
-def hash_file( file_name ):
+def hash_file(file_name):
     """
     Return the hex string representation of the SHA1 checksum of the filename
     """
@@ -357,23 +368,23 @@ def hash_file( file_name ):
             sha1.update(line)
     return sha1.hexdigest()
 
-def hash_string( data ):
+def hash_string(data):
     import hashlib
     sha1 = hashlib.sha1()
-    sha1.update( data.encode('utf-8') )
+    sha1.update(data.encode('utf-8'))
     return sha1.hexdigest()
 
-def get_ver_code( dirname ):
+def get_ver_code(dirname):
     chksums = []
-    for f_dir, f in list_files( dirname ):
+    for f_dir, f in list_files(dirname):
         try:
             stats = os.stat(os.path.join(dirname,f_dir,f))
         except OSError as e:
             bb.warn( "Stat failed" + str(e) + "\n")
             continue
         chksums.append(hash_file(os.path.join(dirname,f_dir,f)))
-    ver_code_string = ''.join( chksums ).lower()
-    ver_code = hash_string( ver_code_string )
+    ver_code_string = ''.join(chksums).lower()
+    ver_code = hash_string(ver_code_string)
     return ver_code
 
 do_spdx[depends] = "${SPDXEPENDENCY}"
