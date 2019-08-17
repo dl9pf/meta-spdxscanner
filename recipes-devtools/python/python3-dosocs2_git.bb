@@ -20,7 +20,6 @@ PV = "0.16.1"
 inherit distutils3 python3native setuptools3 python3-dir  
 
 DEPENDS += "python3-jinja2-native \
-            python3-psycopg2-native \
             python3-docopt-native \
             python3-sqlalchemy-native \
             file-native \
