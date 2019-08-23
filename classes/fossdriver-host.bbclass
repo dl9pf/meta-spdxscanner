@@ -13,7 +13,7 @@
 # 2) spdx files will be output to the path which is defined as[SPDX_DEPLOY_DIR].
 #    By default, SPDX_DEPLOY_DIR is tmp/deploy/
 # 
-
+inherit spdx-common
 
 CREATOR_TOOL = "fossdriver-host.bbclass in meta-spdxscanner"
 
