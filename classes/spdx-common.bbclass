@@ -1,17 +1,4 @@
-# This class integrates real-time license scanning, generation of SPDX standard
-# output and verifiying license info during the building process.
-# It is a combination of efforts from the OE-Core, SPDX and DoSOCSv2 projects.
-#
-# For more information on DoSOCSv2:
-#   https://github.com/DoSOCSv2
-#
-# For more information on SPDX:
-#   http://www.spdx.org
-#
-# Note:
-# 1) Make sure fossdriver has beed installed in your host
-# 2) By default,spdx files will be output to the path which is defined as[SPDX_DEPLOY_DIR] 
-#    in ./meta/conf/spdx-dosocs.conf.
+# This class supplys common functions.
 
 
 SPDXEPENDENCY += "${PATCHTOOL}-native:do_populate_sysroot"
@@ -55,7 +42,9 @@ def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
     # work-shared location. Use os.path.realpath to make sure
     # that we archive the actual directory and not just the link.
     srcdir = os.path.realpath(srcdir)
-
+    build_dir = os.path.join(srcdir, "build")
+    if os.path.exists(build_dir):
+        shutil.rmtree(build_dir)
     bb.utils.mkdirhier(ar_outdir)
     if suffix:
         filename = '%s-%s.tar.gz' % (d.getVar('PF'), suffix)
