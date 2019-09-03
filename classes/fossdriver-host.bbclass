@@ -1,18 +1,20 @@
 # This class integrates real-time license scanning, generation of SPDX standard
 # output and verifiying license info during the building process.
-# It is a combination of efforts from the OE-Core, SPDX and fossdriver projects.
+# It is a combination of efforts from the OE-Core, SPDX and fossology projects.
 #
-# For more information on fossdriver:
-#   https://github.com/fossology/fossdriver
+# For more information on fossology REST API:
+#   https://www.fossology.org/get-started/basic-rest-api-calls/
 #
 # For more information on SPDX:
 #   http://www.spdx.org
 #
 # Note:
-# 1) Make sure fossology 3.5.0(https://hub.docker.com/r/fossology/fossology/) has beed started on your host
+# 1) Make sure fossology (after 3.5.0)(https://hub.docker.com/r/fossology/fossology/) has beed started on your host
 # 2) spdx files will be output to the path which is defined as[SPDX_DEPLOY_DIR].
 #    By default, SPDX_DEPLOY_DIR is tmp/deploy/
-# 
+# 3) Added TOKEN has been set in conf/local.conf
+#
+
 inherit spdx-common
 
 CREATOR_TOOL = "fossdriver-host.bbclass in meta-spdxscanner"

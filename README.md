@@ -1,22 +1,41 @@
 # meta-spdxscanner
 
 meta-spdxscanner supports the following SPDX create tools.
-1. fossdriver (Can work with fossology 3.5.0)
-2. DoSOCSv2 (Scanner comes from fossology 3.4.0)
+1. fossology REST API (Can work with fossology after 3.5.0)
+2. fossdriver (Can work with fossology 3.5.0)
+3. DoSOCSv2 (Scanner comes from fossology 3.4.0)
 
 # This layer depends on:
 
-1. fossdriver
+1. fossology REST API
 - openembedded-core
 
-2. DoSOCSv2
+2. fossdriver
+- openembedded-core
+
+3. DoSOCSv2
 - openembedded-core
 - meta-openembedded/meta-oe
 - meta-openembedded/meta-python
 
 # How to use
 
-1.  fossdriver-host.bbclass
+1.  fossology-rest.bbclass
+- inherit the folowing class in your conf/local.conf for all of recipes or
+  in some recipes which you want.
+
+```
+  INHERIT += "fossology-rest"
+  TOKEN = "eyJ0eXAiO..."
+  FOSSOLOGY_SERVER = "http://xx.xx.xx.xx:8081/repo" //By default, it is http://127.0.0.1:8081/repo
+```
+Note
+- If you want to use fossology-rest.bbclass, you have to make sure that fossology server on your host and make sure it works well.
+  Please reference to https://hub.docker.com/r/fossology/fossology/.
+- TOKEN can be created on fossology server after login by "Admin"->"Users"->"Edit user account"->"Create a new token".
+- If you don't want to create spdx files for *-native, please use meta-spdxscanner/classes/nopackages.bbclass instead of oe-core.
+
+2.  fossdriver-host.bbclass
 - inherit the folowing class in your conf/local.conf for all of recipes or
   in some recipes which you want.
 
@@ -28,7 +47,7 @@ Note
   Please reference to https://hub.docker.com/r/fossology/fossology/ and https://github.com/fossology/fossdriver.
 - Please use meta-spdxscanner/classes/nopackages.bbclass instead of oe-core. Because there is no necessary to create spdx files for *-native.
   
-2. dosocs.bbclass 
+3. dosocs.bbclass 
 - inherit the folowing class in your conf/local.conf for all of recipes or
   in some recipes which you want.
 
