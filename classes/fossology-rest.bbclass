@@ -126,7 +126,7 @@ python do_spdx () {
         bb.warn(info['pn'] + "has no source, do nothing")
         return
     folder_id = (d.getVar('FOLDER_ID', True) or "")
-    if invoke_rest_api(d, tar_name,sstatefile, folder_id) == False:
+    if invoke_rest_api(d, tar_name, sstatefile, folder_id) == False:
         bb.warn("info['pn']: Get spdx file fail, please check your fossology.")
         return False
     if get_cached_spdx(sstatefile) != None:
@@ -153,7 +153,9 @@ def has_upload(d, tar_file, folder):
         bb.note("Please set token of fossology server by setting TOKEN!\n" + srcPath)
         raise OSError(errno.ENOENT, "No setting of TOKEN comes from fossology server.")
 
-    rest_api_cmd = "curl -k -s -S -X GET " + server_url + "/api/v1/uploads" + " -H \"Authorization: Bearer " + token + "\"" + " --noproxy 127.0.0.1"
+    rest_api_cmd = "curl -k -s -S -X GET " + server_url + "/api/v1/uploads" \
+                   + " -H \"Authorization: Bearer " + token + "\"" \
+                   + " --noproxy 127.0.0.1"
     bb.note("Invoke rest_api_cmd = " + rest_api_cmd )
         
     try:
@@ -177,7 +179,7 @@ def has_upload(d, tar_file, folder):
     bb.note(str(len(upload_output)))
     for i in range(0, len(upload_output)):
         if upload_output[i]["uploadname"] == file_name:
-            if os.path.getsize(tar_file) == upload_output[i]["filesize"] and upload_output[i]["foldername"] == "Software Repository":
+            if str(os.path.getsize(tar_file)) == str(upload_output[i]["filesize"]) and str(upload_output[i]["folderid"]) == str(folder_id):
                 bb.warn("Find " + file_name + "in fossology server \"Software Repository\" folder. So, will not upload again.")
                 return upload_output[i]["id"]
     return False
@@ -204,7 +206,7 @@ def upload(d, tar_file, folder):
                     + " -H \'uploadDescription: created by REST\'" \
                     + " -H \'public: public\'"  \
                     + " -H \'Content-Type: multipart/form-data\'"  \
-                    + " -F \'fileInput=@\"" + tar_file + "\";type=application/octet-stream\'"
+                    + " -F \'fileInput=@\"" + tar_file + "\";type=application/octet-stream\'" \
                     + " --noproxy 127.0.0.1"
     bb.note("Upload : Invoke rest_api_cmd = " + rest_api_cmd )
     while i < 10:
@@ -245,23 +247,28 @@ def analysis(d, folder_id, upload_id):
                     + " -H \"uploadId: " + str(upload_id) + "\"" \
                     + " -H \"Authorization: Bearer " + token + "\"" \
                     + " -H \'Content-Type: application/json\'" \
-                    + " --data \'{\"analysis\": {\"bucket\": true,\"copyright_email_author\": true,\"ecc\": true, \"keyword\": true,\"mime\": true,\"monk\": true,\"nomos\": true,\"package\": true},\"decider\": {\"nomos_monk\": true,\"bulk_reused\": true,\"new_scanner\": true}}\'"
+                    + " --data \'{\"analysis\": {\"bucket\": true,\"copyright_email_author\": true,\"ecc\": true, \"keyword\": true,\"mime\": true,\"monk\": true,\"nomos\": true,\"package\": true},\"decider\": {\"nomos_monk\": true,\"bulk_reused\": true,\"new_scanner\": true}}\'" \
                     + " --noproxy 127.0.0.1"
     bb.note("Analysis : Invoke rest_api_cmd = " + rest_api_cmd )
     while i < 10:
-        time.sleep(delaytime)
         try:
+            time.sleep(delaytime)
             analysis = subprocess.check_output(rest_api_cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
             bb.error("Analysis failed: \n%s" % e.output.decode("utf-8"))
             return False
-
+        time.sleep(delaytime)
         analysis = str(analysis, encoding = "utf-8")
         bb.note("analysis  = ")
         bb.note(analysis)
         analysis = eval(analysis)
         if str(analysis["code"]) == "201":
             return analysis["message"]
+        elif str(analysis["code"]) == "404":
+            bb.warn("analysis is still not complete.")
+            time.sleep(delaytime)
+        else:
+            return False
         i += 1
         bb.warn("Analysis is fail, will try again.")
     bb.warn("Analysis is fail, please check your fossology server.")
@@ -286,7 +293,7 @@ def trigger(d, folder_id, upload_id):
     rest_api_cmd = "curl -k -s -S -X GET " + server_url + "/api/v1/report" \
                     + " -H \"Authorization: Bearer " + token + "\"" \
                     + " -H \"uploadId: " + str(upload_id) + "\"" \
-                    + " -H \'reportFormat: spdx2tv\'"
+                    + " -H \'reportFormat: spdx2tv\'" \
                     + " --noproxy 127.0.0.1"
     bb.note("trigger : Invoke rest_api_cmd = " + rest_api_cmd )
     while i < 10:
@@ -296,7 +303,7 @@ def trigger(d, folder_id, upload_id):
         except subprocess.CalledProcessError as e:
             bb.error("Trigger failed: \n%s" % e.output.decode("utf-8"))
             return False
-
+        time.sleep(delaytime)
         trigger = str(trigger, encoding = "utf-8")
         trigger = eval(trigger)
         bb.note("trigger id = ")
@@ -304,6 +311,7 @@ def trigger(d, folder_id, upload_id):
         if str(trigger["code"]) == "201":
             return trigger["message"].split("/")[-1]
         i += 1
+        time.sleep(delaytime)
         bb.warn("Trigger is fail, will try again.")
     bb.warn("Trigger is fail, please check your fossology server.")
     return False
@@ -312,7 +320,7 @@ def get_spdx(d, report_id, spdx_file):
     import os
     import subprocess
     import time
-    delaytime = 100
+    delaytime = 50
     empty = True
     i = 0
 
@@ -327,47 +335,48 @@ def get_spdx(d, report_id, spdx_file):
         raise OSError(errno.ENOENT, "No setting of TOKEN comes from fossology server.")
     rest_api_cmd = "curl -k -s -S -X GET " + server_url + "/api/v1/report/" + report_id \
                     + " -H \'accept: text/plain\'" \
-                    + " -H \"Authorization: Bearer " + token + "\""
+                    + " -H \"Authorization: Bearer " + token + "\"" \
                     + " --noproxy 127.0.0.1"
     bb.note("get_spdx : Invoke rest_api_cmd = " + rest_api_cmd )
-    try:
-        while i < 10:
-            time.sleep(delaytime)
-            file = open(spdx_file,'wt')
+    while i < 10:
+        time.sleep(delaytime)
+        file = open(spdx_file,'wt')
+        try:
             p = subprocess.Popen(rest_api_cmd, shell=True, universal_newlines=True, stdout=file)
-            ret_code = p.wait()
-            file.flush()
-            file.close()
-            file = open(spdx_file,'r+')
-            first_line = file.readline()
-            if "SPDXVersion" in first_line:
+        except subprocess.CalledProcessError as e:
+            bb.error("Get spdx failed: \n%s" % e.output.decode("utf-8"))
+            return False
+        ret_code = p.wait()
+        file.flush()
+        time.sleep(delaytime)
+        file.close()
+        file = open(spdx_file,'r+')
+        first_line = file.readline()
+        if "SPDXVersion" in first_line:
+            line = file.readline()
+            while line:
+                if "LicenseID:" in line:
+                    empty = False
+                    break
                 line = file.readline()
-                while line:
-                    if "LicenseID:" in line:
-                        empty = False
-                        break
-                    line = file.readline()
-                if empty == True:
-                    bb.warn("This is an empty spdx file. Please confirm")
-                file.close()
-                return
+            file.close()
+            if empty == True:
+                bb.warn("Hasn't get license info.")
+                return False
             else:
-                bb.warn("Get spdx failed, will try again.")
-                file.close()
-                os.remove(spdx_file)
-            i += 1
-    except subprocess.CalledProcessError as e:
-        bb.error("Get spdx failed: \n%s" % e.output.decode("utf-8"))
-        return False
-    
-    bb.warn("Get spdx failed, please check your fossology server.")
-
-    file.close()
-
+                return True
+        else:
+            bb.warn("Get the first line is " + first_line)
+            bb.warn("spdx is not correct, will try again.")
+            file.close()
+            os.remove(spdx_file)
+        i += 1
+    bb.warn("Get spdx failed, Please check your fossology server.")
 
 def invoke_rest_api(d, tar_file, spdx_file, folder_id):
     import os
     import time
+    i = 0
         
     bb.note("invoke fossology REST API : tar_file = %s " % tar_file)
     upload_id = has_upload(d, tar_file, folder_id)
@@ -379,9 +388,15 @@ def invoke_rest_api(d, tar_file, spdx_file, folder_id):
     
     if analysis(d, folder_id, upload_id) == False:
         return False
-    report_id = trigger(d, folder_id, upload_id)
-    if report_id == False:
-        return False
-    if get_spdx(d, report_id, spdx_file) == False:
-        return False
-    return True
+    while i < 3:
+        report_id = trigger(d, folder_id, upload_id)
+        if report_id == False:
+            return False
+        spdx2tv = get_spdx(d, report_id, spdx_file)
+        if spdx2tv == False:
+            bb.warn("get_spdx is unnormal. Will try again!")
+        else:
+            return True
+
+    print("get_spdx of %s is unnormal. Please check your fossology server!")
+    return False
