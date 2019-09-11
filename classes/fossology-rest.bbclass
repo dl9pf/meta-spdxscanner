@@ -127,7 +127,7 @@ python do_spdx () {
         return
     folder_id = (d.getVar('FOLDER_ID', True) or "")
     if invoke_rest_api(d, tar_name, sstatefile, folder_id) == False:
-        bb.warn("info['pn']: Get spdx file fail, please check your fossology.")
+        bb.warn("Get spdx file fail, please check your fossology.")
         return False
     if get_cached_spdx(sstatefile) != None:
         write_cached_spdx( info,sstatefile,cur_ver_code )
@@ -266,7 +266,7 @@ def analysis(d, folder_id, upload_id):
             return analysis["message"]
         elif str(analysis["code"]) == "404":
             bb.warn("analysis is still not complete.")
-            time.sleep(delaytime)
+            time.sleep(delaytime*2)
         else:
             return False
         i += 1
@@ -311,7 +311,7 @@ def trigger(d, folder_id, upload_id):
         if str(trigger["code"]) == "201":
             return trigger["message"].split("/")[-1]
         i += 1
-        time.sleep(delaytime)
+        time.sleep(delaytime * 2)
         bb.warn("Trigger is fail, will try again.")
     bb.warn("Trigger is fail, please check your fossology server.")
     return False
@@ -338,7 +338,7 @@ def get_spdx(d, report_id, spdx_file):
                     + " -H \"Authorization: Bearer " + token + "\"" \
                     + " --noproxy 127.0.0.1"
     bb.note("get_spdx : Invoke rest_api_cmd = " + rest_api_cmd )
-    while i < 10:
+    while i < 3:
         time.sleep(delaytime)
         file = open(spdx_file,'wt')
         try:
@@ -371,6 +371,7 @@ def get_spdx(d, report_id, spdx_file):
             file.close()
             os.remove(spdx_file)
         i += 1
+        time.sleep(delaytime*2)
     bb.warn("Get spdx failed, Please check your fossology server.")
 
 def invoke_rest_api(d, tar_file, spdx_file, folder_id):
@@ -388,7 +389,7 @@ def invoke_rest_api(d, tar_file, spdx_file, folder_id):
     
     if analysis(d, folder_id, upload_id) == False:
         return False
-    while i < 3:
+    while i < 10:
         report_id = trigger(d, folder_id, upload_id)
         if report_id == False:
             return False
