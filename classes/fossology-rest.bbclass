@@ -129,6 +129,7 @@ python do_spdx () {
     folder_id = (d.getVar('FOLDER_ID', True) or "")
     if invoke_rest_api(d, tar_name, sstatefile, folder_id) == False:
         bb.warn("Get spdx file fail, please check your fossology.")
+        remove_file(tar_name)
         return False
     if get_cached_spdx(sstatefile) != None:
         write_cached_spdx( info,sstatefile,cur_ver_code )
@@ -136,6 +137,7 @@ python do_spdx () {
         create_manifest(info,sstatefile)
     else:
         bb.warn('Can\'t get the spdx file ' + info['pn'] + '. Please check your.')
+    remove_file(tar_name)
 }
 
 def has_upload(d, tar_file, folder):
