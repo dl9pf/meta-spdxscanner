@@ -393,6 +393,7 @@ def invoke_rest_api(d, tar_file, spdx_file, folder_id):
     if analysis(d, folder_id, upload_id) == False:
         return False
     while i < 10:
+        i += 1
         report_id = trigger(d, folder_id, upload_id)
         if report_id == False:
             return False
