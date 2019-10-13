@@ -140,7 +140,7 @@ python do_spdx () {
     remove_file(tar_name)
 }
 
-def has_upload(d, tar_file, folder):
+def has_upload(d, tar_file, folder_id):
     import os
     import subprocess
     
