@@ -5,7 +5,7 @@ meta-spdxscanner supports the following SPDX create tools.
 2. fossdriver (Can work with fossology 3.5.0)
 3. DoSOCSv2 (Scanner comes from fossology 3.4.0)
 
-# This layer depends on:
+# This layer supplys invoking scanners as following:
 
 1. fossology REST API
 - openembedded-core
