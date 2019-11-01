@@ -136,6 +136,12 @@ def invoke_fossdriver(tar_file, spdx_file):
     import time
     delaytime = 20
     
+    import logging
+    
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    logging.basicConfig(level=logging.INFO)
+    
     (work_dir, tar_file) = os.path.split(tar_file)
     os.chdir(work_dir)
 
