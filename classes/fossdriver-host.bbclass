@@ -168,7 +168,7 @@ def invoke_fossdriver(tar_file, spdx_file):
                 i = 0
                 while i < 10:                
                     if (Scanners(server, tar_file, "Software Repository").run() != True):
-                        bb.warn("%s scanner failed, try again!" % tar_file)
+                        bb.warn("%s Scanners failed, try again!" % tar_file)
                         time.sleep(delaytime)
                         i+= 1
                     else:
