@@ -2,11 +2,8 @@
 
 
 SPDXEPENDENCY += "${PATCHTOOL}-native:do_populate_sysroot"
-SPDXEPENDENCY += " wget-native:do_populate_sysroot"
 SPDXEPENDENCY += " subversion-native:do_populate_sysroot"
-SPDXEPENDENCY += " git-native:do_populate_sysroot"
 SPDXEPENDENCY += " lz4-native:do_populate_sysroot"
-SPDXEPENDENCY += " lzip-native:do_populate_sysroot"
 SPDXEPENDENCY += " xz-native:do_populate_sysroot"
 SPDXEPENDENCY += " unzip-native:do_populate_sysroot"
 SPDXEPENDENCY += " xz-native:do_populate_sysroot"
@@ -27,7 +24,7 @@ LICENSELISTVERSION = "2.6"
 # the real top-level directory.
 SPDX_S ?= "${S}"
 
-addtask do_spdx before do_unpack after do_fetch
+addtask do_spdx before do_build after do_patch
 
 def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
     """
@@ -47,9 +44,9 @@ def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
         shutil.rmtree(build_dir)
     bb.utils.mkdirhier(ar_outdir)
     if suffix:
-        filename = '%s-%s.tar.gz' % (d.getVar('PF'), suffix)
+        filename = '%s-%s.tar.gz' % (d.getVar('PF', True), suffix)
     else:
-        filename = '%s.tar.gz' % d.getVar('PF')
+        filename = '%s.tar.gz' % d.getVar('PF', True)
     tarname = os.path.join(ar_outdir, filename)
 
     bb.note('Creating %s' % tarname)
@@ -62,31 +59,26 @@ def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
 # Run do_unpack and do_patch
 def spdx_get_src(d):
     import shutil
-    spdx_workdir = d.getVar('SPDX_WORKDIR')
-    spdx_sysroot_native = d.getVar('STAGING_DIR_NATIVE')
-    pn = d.getVar('PN')
-
+    spdx_workdir = d.getVar('SPDX_WORKDIR', True)
+    spdx_sysroot_native = d.getVar('STAGING_DIR_NATIVE', True)
+    pn = d.getVar('PN', True)
     # We just archive gcc-source for all the gcc related recipes
-    if d.getVar('BPN') in ['gcc', 'libgcc']:
+    if d.getVar('BPN', True) in ['gcc', 'libgcc']:
         bb.debug(1, 'spdx: There is bug in scan of %s is, do nothing' % pn)
         return
-
     # The kernel class functions require it to be on work-shared, so we dont change WORKDIR
     if not is_work_shared(d):
         # Change the WORKDIR to make do_unpack do_patch run in another dir.
         d.setVar('WORKDIR', spdx_workdir)
         # Restore the original path to recipe's native sysroot (it's relative to WORKDIR).
         d.setVar('STAGING_DIR_NATIVE', spdx_sysroot_native)
-
         # The changed 'WORKDIR' also caused 'B' changed, create dir 'B' for the
         # possibly requiring of the following tasks (such as some recipes's
         # do_patch required 'B' existed).
-        bb.utils.mkdirhier(d.getVar('B'))
-
+        bb.utils.mkdirhier(d.getVar('B', True))
         bb.build.exec_func('do_unpack', d)
-
     # Make sure gcc and kernel sources are patched only once
-    if not (d.getVar('SRC_URI') == "" or is_work_shared(d)):
+    if not (d.getVar('SRC_URI', True) == "" or is_work_shared(d)):
         bb.build.exec_func('do_patch', d)
     # Some userland has no source.
     if not os.path.exists( spdx_workdir ):
@@ -152,7 +144,7 @@ def write_cached_spdx( info,sstatefile, ver_code ):
     subprocess.call("%s" % sed_cmd, shell=True)
 
 def is_work_shared(d):
-    pn = d.getVar('PN')
+    pn = d.getVar('PN', True)
     return bb.data.inherits_class('kernel', d) or pn.startswith('gcc-source')
 
 def remove_dir_tree(dir_name):

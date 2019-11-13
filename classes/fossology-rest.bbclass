@@ -28,38 +28,34 @@ SPDX_S ?= "${S}"
 
 python do_spdx () {
     import os, sys, shutil
-
-    pn = d.getVar('PN')
-    assume_provided = (d.getVar("ASSUME_PROVIDED") or "").split()
+    pn = d.getVar('PN', True)
+    assume_provided = (d.getVar("ASSUME_PROVIDED", True) or "").split()
     if pn in assume_provided:
-        for p in d.getVar("PROVIDES").split():
+        for p in d.getVar("PROVIDES", True).split():
             if p != pn:
                 pn = p
                 break
-
     # The following: do_fetch, do_unpack and do_patch tasks have been deleted,
     # so avoid archiving do_spdx here.
     if pn.startswith('glibc-locale'):
         return
     #if (d.getVar('BPN') == "linux-yocto"):
     #    return
-    if (d.getVar('PN') == "libtool-cross"):
+    if (d.getVar('PN', True) == "libtool-cross"):
         return
-    if (d.getVar('PN') == "libgcc-initial"):
+    if (d.getVar('PN', True) == "libgcc-initial"):
         return
-    if (d.getVar('PN') == "shadow-sysroot"):
+    if (d.getVar('PN', True) == "shadow-sysroot"):
         return
-
 
     # We just archive gcc-source for all the gcc related recipes
-    if d.getVar('BPN') in ['gcc', 'libgcc']:
+    if d.getVar('BPN', True) in ['gcc', 'libgcc']:
         bb.debug(1, 'spdx: There is bug in scan of %s is, do nothing' % pn)
         return
-
-    spdx_outdir = d.getVar('SPDX_OUTDIR')
-    spdx_workdir = d.getVar('SPDX_WORKDIR')
+    spdx_outdir = d.getVar('SPDX_OUTDIR', True)
+    spdx_workdir = d.getVar('SPDX_WORKDIR', True)
     spdx_temp_dir = os.path.join(spdx_workdir, "temp")
-    temp_dir = os.path.join(d.getVar('WORKDIR'), "temp")
+    temp_dir = os.path.join(d.getVar('WORKDIR', True), "temp")
     
     info = {} 
     info['workdir'] = (d.getVar('WORKDIR', True) or "")
@@ -81,7 +77,6 @@ python do_spdx () {
     info['package_static_link'] = (d.getVar('STATIC_LINK', True) or "")
     info['modified'] = "false"
     info['token'] = (d.getVar('TOKEN', True) or "")
-    
     srcuri = d.getVar("SRC_URI", False).split()
     length = len("file://")
     for item in srcuri:
@@ -96,7 +91,6 @@ python do_spdx () {
 
     info['outfile'] = os.path.join(manifest_dir, info['pn'] + "-" + info['pv'] + ".spdx" )
     sstatefile = os.path.join(spdx_outdir, info['pn'] + "-" + info['pv'] + ".spdx" )
-    
     # if spdx has been exist
     if os.path.exists(info['outfile']):
         bb.note(info['pn'] + "spdx file has been exist, do nothing")
@@ -105,9 +99,7 @@ python do_spdx () {
         bb.note(info['pn'] + "spdx file has been exist, do nothing")
         create_manifest(info,sstatefile)
         return
-
     spdx_get_src(d)
-
     bb.note('SPDX: Archiving the patched source...')
     if os.path.isdir(spdx_temp_dir):
         for f_dir, f in list_files(spdx_temp_dir):
@@ -167,7 +159,7 @@ def has_upload(d, tar_file, folder_id):
         bb.error("curl failed: \n%s" % e.output.decode("utf-8"))
         return False
 
-    upload_output = str(upload_output, encoding = "utf-8")
+    upload_output = str(upload_output)
     upload_output = eval(upload_output)
     bb.note("upload_output = ")
     print(upload_output)
@@ -219,7 +211,7 @@ def upload(d, tar_file, folder):
         except subprocess.CalledProcessError as e:
             bb.error("Upload failed: \n%s" % e.output.decode("utf-8"))
             return False
-        upload = str(upload, encoding = "utf-8")
+        upload = str(upload)
         bb.note("Upload = ")
         bb.note(upload)
         upload = eval(upload)
@@ -261,7 +253,7 @@ def analysis(d, folder_id, upload_id):
             bb.error("Analysis failed: \n%s" % e.output.decode("utf-8"))
             return False
         time.sleep(delaytime)
-        analysis = str(analysis, encoding = "utf-8")
+        analysis = str(analysis)
         bb.note("analysis  = ")
         bb.note(analysis)
         analysis = eval(analysis)
@@ -307,7 +299,7 @@ def trigger(d, folder_id, upload_id):
             bb.error("Trigger failed: \n%s" % e.output.decode("utf-8"))
             return False
         time.sleep(delaytime)
-        trigger = str(trigger, encoding = "utf-8")
+        trigger = str(trigger)
         trigger = eval(trigger)
         bb.note("trigger id = ")
         bb.note(str(trigger["message"]))
