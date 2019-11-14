@@ -29,9 +29,6 @@ python do_dosocs2_init() {
     path = os.getenv('PATH')    
     dosocs2_cmd = bb.utils.which(os.getenv('PATH'), "dosocs2")
     dosocs2_init_cmd = dosocs2_cmd + " dbinit --no-confirm"
-    #dosocs2_init_cmd = dosocs2_cmd + " --help"
-    bb.note("lmh test PATH = %s " % path)
-    bb.note("lmh test dosocs2_init_cmd = %s " % dosocs2_init_cmd)
     try:
         complementary_pkgs = subprocess.check_output(dosocs2_init_cmd,
                                                      stderr=subprocess.STDOUT,

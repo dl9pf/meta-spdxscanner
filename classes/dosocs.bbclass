@@ -9,54 +9,52 @@
 #   http://www.spdx.org
 #
 # Note:
-# 1) Make sure DoSOCSv2 has beed installed in your host
+# 1) Make sure fossdriver has beed installed in your host
 # 2) By default,spdx files will be output to the path which is defined as[SPDX_DEPLOY_DIR] 
-#    in ./meta/conf/spdx-dosocs.conf.
+#    By default, SPDX_DEPLOY_DIR is tmp/deploy
+#
+inherit spdx-common
 
-PYTHON_INHERIT = "${@bb.utils.contains('PN', '-native', '', 'python3-dir', d)}"
-PYTHON_INHERIT .= "${@bb.utils.contains('PACKAGECONFIG', 'python3', 'python3native', '', d)}"
+SPDXEPENDENCY += "python3-dosocs2-init-native:do_dosocs2_init"
+SPDXEPENDENCY += "python3-dosocs2-native:do_populate_sysroot"
 
-inherit ${PYTHON_INHERIT} python3-dir
-
-PYTHON = "${@bb.utils.contains('PN', '-native', '${STAGING_BINDIR_NATIVE}/${PYTHON_PN}-native/${PYTHON_PN}', '', d)}" 
-EXTRANATIVEPATH += "${PYTHON_PN}-native"
-
-# python-config and other scripts are using distutils modules
-# which we patch to access these variables
-export STAGING_INCDIR
-export STAGING_LIBDIR
-
-# autoconf macros will use their internal default preference otherwise
-export PYTHON
-
-do_spdx[depends] += "python3-dosocs2-init-native:do_dosocs2_init"
-do_spdx[depends] += "python3-dosocs2-native:do_populate_sysroot"
-
-SPDXSSTATEDIR = "${WORKDIR}/spdx_sstate_dir"
-
-# If ${S} isn't actually the top-level source directory, set SPDX_S to point at
-# the real top-level directory.
-
-SPDX_S ?= "${S}"
+LICENSELISTVERSION = "2.6"
+CREATOR_TOOL = "dosocs.bbclass in meta-spdxscanner"
 
 python do_spdx () {
-    import os, sys
-    import json
+    import os, sys, json, shutil
 
-    pn = d.getVar("PN")
-    depends = d.getVar("DEPENDS")
-    ## It's no necessary  to get spdx files for *-native  
-    if pn.find("-native") == -1 and pn.find("binutils-cross") == -1:
-        PYTHON = "${STAGING_BINDIR_NATIVE}/${PYTHON_PN}-native/${PYTHON_PN}"
-        os.environ['PYTHON'] = PYTHON
-        depends = "%s python3-dosocs2-init-native" % depends
-        d.setVar("DEPENDS", depends)
-    else:
-        return None
+    pn = d.getVar('PN')
+    assume_provided = (d.getVar("ASSUME_PROVIDED") or "").split()
+    if pn in assume_provided:
+        for p in d.getVar("PROVIDES").split():
+            if p != pn:
+                pn = p
+                break
 
-    ## gcc and kernel is too big to get spdx file.
-    if ('gcc' or 'linux-yocto') in d.getVar('PN', True):
-        return None 
+    # glibc-locale: do_fetch, do_unpack and do_patch tasks have been deleted,
+    # so avoid archiving source here.
+    if pn.startswith('glibc-locale'):
+        return
+    if (d.getVar('BPN') == "linux-yocto"):
+        return
+    if (d.getVar('PN') == "libtool-cross"):
+        return
+    if (d.getVar('PN') == "libgcc-initial"):
+        return
+    if (d.getVar('PN') == "shadow-sysroot"):
+        return
+
+
+    # We just archive gcc-source for all the gcc related recipes
+    if d.getVar('BPN') in ['gcc', 'libgcc']:
+        bb.debug(1, 'spdx: There is bug in scan of %s is, do nothing' % pn)
+        return
+
+    spdx_outdir = d.getVar('SPDX_OUTDIR')
+    spdx_workdir = d.getVar('SPDX_WORKDIR')
+    spdx_temp_dir = os.path.join(spdx_workdir, "temp")
+    temp_dir = os.path.join(d.getVar('WORKDIR'), "temp")
     
     info = {} 
     info['workdir'] = (d.getVar('WORKDIR', True) or "")
@@ -76,98 +74,56 @@ python do_spdx () {
     info['package_summary'] = info['package_summary'].replace("'"," ")
     info['package_contains'] = (d.getVar('CONTAINED', True) or "")
     info['package_static_link'] = (d.getVar('STATIC_LINK', True) or "")
+    info['modified'] = "false"
+    srcuri = d.getVar("SRC_URI", False).split()
+    length = len("file://")
+    for item in srcuri:
+        if item.startswith("file://"):
+            item = item[length:]
+            if item.endswith(".patch") or item.endswith(".diff"):
+                info['modified'] = "true"
 
-    spdx_sstate_dir = (d.getVar('SPDXSSTATEDIR', True) or "")
     manifest_dir = (d.getVar('SPDX_DEPLOY_DIR', True) or "")
+    if not os.path.exists( manifest_dir ):
+        bb.utils.mkdirhier( manifest_dir )
     info['outfile'] = os.path.join(manifest_dir, info['pn'] + "-" + info['pv'] + ".spdx" )
-    sstatefile = os.path.join(spdx_sstate_dir, 
-        info['pn'] + "-" + info['pv'] + ".spdx" )
-
-    ## get everything from cache.  use it to decide if 
-    ## something needs to be rerun
-    if not os.path.exists( spdx_sstate_dir ):
-        bb.utils.mkdirhier( spdx_sstate_dir )
+    sstatefile = os.path.join(spdx_outdir, info['pn'] + "-" + info['pv'] + ".spdx" )
     
-    d.setVar('WORKDIR', d.getVar('SPDX_TEMP_DIR', True))
-    info['sourcedir'] = (d.getVar('SPDX_S', True) or "")
-    cur_ver_code = get_ver_code( info['sourcedir'] ).split()[0]
-    cache_cur = False
+    # if spdx has been exist
+    if os.path.exists(info['outfile']):
+        bb.note(info['pn'] + "spdx file has been exist, do nothing")
+        return
     if os.path.exists( sstatefile ):
-        ## cache for this package exists. read it in
-        cached_spdx = get_cached_spdx( sstatefile )
-        if cached_spdx:
-            cached_spdx = cached_spdx.split()[0]
-        if (cached_spdx == cur_ver_code):
-            bb.warn(info['pn'] + "'s ver code same as cache's. do nothing")
-            cache_cur = True
-            create_manifest(info,sstatefile)
-    if not cache_cur:
-        git_path = "%s/.git" % info['sourcedir']
-        if os.path.exists(git_path):
-            remove_dir_tree(git_path)
+        bb.note(info['pn'] + "spdx file has been exist, do nothing")
+        create_manifest(info,sstatefile)
+        return
 
-        ## Get spdx file
-        #bb.warn(' run_dosocs2 ...... ')
-        invoke_dosocs2(info['sourcedir'],sstatefile)
-        if get_cached_spdx( sstatefile ) != None:
-            write_cached_spdx( info,sstatefile,cur_ver_code )
-            ## CREATE MANIFEST(write to outfile )
-            create_manifest(info,sstatefile)
-        else:
-            bb.warn('Can\'t get the spdx file ' + info['pn'] + '. Please check your dosocs2.')
-    d.setVar('WORKDIR', info['workdir'])
+    spdx_get_src(d)
+
+    bb.note('SPDX: Archiving the patched source...')
+    if os.path.isdir(spdx_temp_dir):
+        for f_dir, f in list_files(spdx_temp_dir):
+            temp_file = os.path.join(spdx_temp_dir,f_dir,f)
+            shutil.copy(temp_file, temp_dir)
+        shutil.rmtree(spdx_temp_dir)
+    if not os.path.exists(spdx_outdir):
+        bb.utils.mkdirhier(spdx_outdir)
+    cur_ver_code = get_ver_code(spdx_workdir).split()[0] 
+    ## Get spdx file
+    bb.note(' run dosocsv2 ...... ')
+    d.setVar('WORKDIR', d.getVar('SPDX_WORKDIR', True))
+    info['sourcedir'] = spdx_workdir
+    git_path = "%s/.git" % info['sourcedir']
+    if os.path.exists(git_path):
+        remove_dir_tree(git_path)
+    invoke_dosocs2(info['sourcedir'],sstatefile)
+    if get_cached_spdx(sstatefile) != None:
+        write_cached_spdx( info,sstatefile,cur_ver_code )
+        ## CREATE MANIFEST(write to outfile )
+        create_manifest(info,sstatefile)
+    else:
+        bb.warn('Can\'t get the spdx file ' + info['pn'] + '. Please check your.')
 }
-#python () {
-#    deps = ' python3-dosocs2-native:do_dosocs2_init'
-#    d.appendVarFlag('do_spdx', 'depends', deps)
-#}
-
-## Get the src after do_patch.
-python do_get_spdx_s() {
-    import shutil
-
-    pn = d.getVar('PN') 
-    ## It's no necessary to get spdx files for *-native
-    if d.getVar('PN', True) == d.getVar('BPN', True) + "-native":
-        return None
-
-    ## gcc and kernel is too big to get spdx file.
-    if ('gcc' or 'linux-yocto') in d.getVar('PN', True):
-        return None
-
-    # Forcibly expand the sysroot paths as we're about to change WORKDIR
-    d.setVar('RECIPE_SYSROOT', d.getVar('RECIPE_SYSROOT'))
-    d.setVar('RECIPE_SYSROOT_NATIVE', d.getVar('RECIPE_SYSROOT_NATIVE'))
-
-    bb.note('Archiving the configured source...')
-    pn = d.getVar('PN')
-    # "gcc-source-${PV}" recipes don't have "do_configure"
-    # task, so we need to run "do_preconfigure" instead
-    if pn.startswith("gcc-source-"):
-        d.setVar('WORKDIR', d.getVar('ARCHIVER_WORKDIR'))
-        bb.build.exec_func('do_preconfigure', d)
-
-    # Change the WORKDIR to make do_configure run in another dir.
-    d.setVar('WORKDIR', d.getVar('SPDX_TEMP_DIR'))
-    #if bb.data.inherits_class('kernel-yocto', d):
-    #    bb.build.exec_func('do_kernel_configme', d)
-    #if bb.data.inherits_class('cmake', d):
-    #    bb.build.exec_func('do_generate_toolchain_file', d)
-    bb.build.exec_func('do_unpack', d)
-}
-
-python () {
-    pn = d.getVar("PN")
-    depends = d.getVar("DEPENDS")
-
-    if pn.find("-native") == -1 and pn.find("binutils-cross") == -1:
-        depends = "%s python3-dosocs2-native" % depends
-        d.setVar("DEPENDS", depends)
-        bb.build.addtask('do_get_spdx_s','do_configure','do_patch', d)
-        bb.build.addtask('do_spdx','do_package', 'do_get_spdx_s', d)
-}
-#addtask get_spdx_s after do_patch before do_configure
-#addtask spdx after do_get_spdx_s before do_package
 
 def invoke_dosocs2( OSS_src_dir, spdx_file):
     import subprocess
@@ -191,112 +147,4 @@ def invoke_dosocs2( OSS_src_dir, spdx_file):
     f = codecs.open(spdx_file,'w','utf-8')
     f.write(dosocs2_output)
 
-def create_manifest(info,sstatefile):
-    import shutil
-    shutil.copyfile(sstatefile,info['outfile'])
-
-def get_cached_spdx( sstatefile ):
-    import subprocess
-
-    if not os.path.exists( sstatefile ):
-        return None
-    
-    try:
-        output = subprocess.check_output(['grep', "PackageVerificationCode", sstatefile])
-    except subprocess.CalledProcessError as e:
-        bb.error("Index creation command '%s' failed with return code %d:\n%s" % (e.cmd, e.returncode, e.output))
-        return None
-    cached_spdx_info=output.decode('utf-8').split(': ')
-    return cached_spdx_info[1]
-
-## Add necessary information into spdx file
-def write_cached_spdx( info,sstatefile, ver_code ):
-    import subprocess
-
-    def sed_replace(dest_sed_cmd,key_word,replace_info):
-        dest_sed_cmd = dest_sed_cmd + "-e 's#^" + key_word + ".*#" + \
-            key_word + replace_info + "#' "
-        return dest_sed_cmd
-
-    def sed_insert(dest_sed_cmd,key_word,new_line):
-        dest_sed_cmd = dest_sed_cmd + "-e '/^" + key_word \
-            + r"/a\\" + new_line + "' "
-        return dest_sed_cmd
-
-    ## Document level information
-    sed_cmd = r"sed -i -e 's#\r$##g' " 
-    spdx_DocumentComment = "<text>SPDX for " + info['pn'] + " version " \ 
-        + info['pv'] + "</text>"
-    sed_cmd = sed_replace(sed_cmd,"DocumentComment",spdx_DocumentComment)
-    
-    ## Package level information
-    sed_cmd = sed_replace(sed_cmd,"PackageName: ",info['pn'])
-    sed_cmd = sed_insert(sed_cmd,"PackageVersion: ",info['pv'])
-    sed_cmd = sed_replace(sed_cmd,"PackageDownloadLocation: ",info['package_download_location'])
-    sed_cmd = sed_replace(sed_cmd,"PackageChecksum: ","PackageHomePage: " + info['package_homepage'])
-    sed_cmd = sed_replace(sed_cmd,"PackageSummary: ","<text>" + info['package_summary'] + "</text>")
-    sed_cmd = sed_replace(sed_cmd,"PackageVerificationCode: ",ver_code)
-    sed_cmd = sed_replace(sed_cmd,"PackageDescription: ", 
-        "<text>" + info['pn'] + " version " + info['pv'] + "</text>")
-    for contain in info['package_contains'].split( ):
-        sed_cmd = sed_insert(sed_cmd,"PackageComment:"," \\n\\n## Relationships\\nRelationship: " + info['pn'] + " CONTAINS " + contain)
-    for static_link in info['package_static_link'].split( ):
-        sed_cmd = sed_insert(sed_cmd,"PackageComment:"," \\n\\n## Relationships\\nRelationship: " + info['pn'] + " STATIC_LINK " + static_link)
-    sed_cmd = sed_cmd + sstatefile
-
-    subprocess.call("%s" % sed_cmd, shell=True)
-
-def remove_dir_tree( dir_name ):
-    import shutil
-    try:
-        shutil.rmtree( dir_name )
-    except:
-        pass
-
-def remove_file( file_name ):
-    try:
-        os.remove( file_name )
-    except OSError as e:
-        pass
-
-def list_files( dir ):
-    for root, subFolders, files in os.walk( dir ):
-        for f in files:
-            rel_root = os.path.relpath( root, dir )
-            yield rel_root, f
-    return
-
-def hash_file( file_name ):
-    """
-    Return the hex string representation of the SHA1 checksum of the filename
-    """
-    try:
-        import hashlib
-    except ImportError:
-        return None
-    
-    sha1 = hashlib.sha1()
-    with open( file_name, "rb" ) as f:
-        for line in f:
-            sha1.update(line)
-    return sha1.hexdigest()
-
-def hash_string( data ):
-    import hashlib
-    sha1 = hashlib.sha1()
-    sha1.update( data.encode('utf-8') )
-    return sha1.hexdigest()
-
-def get_ver_code( dirname ):
-    chksums = []
-    for f_dir, f in list_files( dirname ):
-        try:
-            stats = os.stat(os.path.join(dirname,f_dir,f))
-        except OSError as e:
-            bb.warn( "Stat failed" + str(e) + "\n")
-            continue
-        chksums.append(hash_file(os.path.join(dirname,f_dir,f)))
-    ver_code_string = ''.join( chksums ).lower()
-    ver_code = hash_string( ver_code_string )
-    return ver_code
-
+EXPORT_FUNCTIONS do_spdx
