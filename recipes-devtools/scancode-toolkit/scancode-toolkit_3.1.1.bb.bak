@@ -1,0 +1,29 @@
+SUMMARY = "ScanCode toolkit"
+DESCRIPTION = "A typical software project often reuses hundreds of third-party \
+packages. License and origin information is not always easy to find and not \
+normalized: ScanCode discovers and normalizes this data for you."
+HOMEPAGE = "https://github.com/nexB/scancode-toolkit"
+SECTION = "devel"
+
+LICENSE = "Apache-2.0"
+LIC_FILES_CHKSUM = "file://NOTICE;md5=8aedb84647f637c585e71f8f2e96e5c8"
+
+inherit setuptools pypi distutils
+
+DEPENDS = "python-setuptools-native xz zlib libxml2 libxslt bzip2\
+           python-pip python-dateutil python-setuptools"
+
+SRC_URI = "git://github.com/nexB/scancode-toolkit;branch=master \
+          "
+
+SRCREV = "1af5ac8449cbb1ce98a0b461a6d9a5ad42a5d248"
+
+
+S = "${WORKDIR}/git"
+
+do_compile(){
+	./scancode --help
+}
+
+
+BBCLASSEXTEND = "native"
