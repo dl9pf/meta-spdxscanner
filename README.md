@@ -2,8 +2,9 @@
 
 meta-spdxscanner supports the following SPDX create tools.
 1. fossology REST API (Can work with fossology after 3.5.0)
-2. fossdriver (Can work with fossology 3.5.0)
-3. DoSOCSv2 (Scanner comes from fossology 3.4.0)
+2. fossdriver (Can work with fossology)
+3. cancode-toolkit
+4. DoSOCSv2 (Scanner comes from fossology 3.4.0)
 
 # This layer supplys invoking scanners as following:
 
@@ -13,7 +14,10 @@ meta-spdxscanner supports the following SPDX create tools.
 2. fossdriver
 - openembedded-core
 
-3. DoSOCSv2
+3. scancode-toolkit
+- openembedded-core
+
+4. DoSOCSv2
 - openembedded-core
 - meta-openembedded/meta-oe
 - meta-openembedded/meta-python
@@ -47,7 +51,19 @@ Note
   Please reference to https://hub.docker.com/r/fossology/fossology/ and https://github.com/fossology/fossdriver.
 - Please use meta-spdxscanner/classes/nopackages.bbclass instead of oe-core. Because there is no necessary to create spdx files for *-native.
   
-3. dosocs.bbclass 
+3.  scancode.bbclass
+- inherit the folowing class in your conf/local.conf for all of recipes or
+  in some recipes which you want.
+
+```
+  INHERIT += "scancode"
+```
+Note
+- If you want to use scancode.bbclass, There is no need to install anything on your host.
+- To aviod loop dependence,please use meta-spdxscanner/classes/nopackages.bbclass instead the file comes from oe-core.
+
+
+4. dosocs.bbclass 
 - inherit the folowing class in your conf/local.conf for all of recipes or
   in some recipes which you want.
 
