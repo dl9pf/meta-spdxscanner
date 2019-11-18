@@ -31,7 +31,7 @@ meta-spdxscanner supports the following SPDX create tools.
 ```
   INHERIT += "fossology-rest"
   TOKEN = "eyJ0eXAiO..."
-  FOSSOLOGY_SERVER = "http://xx.xx.xx.xx:8081/repo" //By default, it is http://127.0.0.1:8081/repo
+  FOSSOLOGY_SERVER = "http://xx.xx.xx.xx:8081/repo" //Optional,by default, it is http://127.0.0.1:8081/repo
 ```
 Note
 - If you want to use fossology-rest.bbclass, you have to make sure that fossology server on your host and make sure it works well.
