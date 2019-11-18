@@ -3,7 +3,7 @@
 meta-spdxscanner supports the following SPDX create tools.
 1. fossology REST API (Can work with fossology after 3.5.0)
 2. fossdriver (Can work with fossology)
-3. cancode-toolkit
+3. scancode-toolkit
 4. DoSOCSv2 (Scanner comes from fossology 3.4.0)
 
 # This layer supplys invoking scanners as following:
