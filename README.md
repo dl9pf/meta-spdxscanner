@@ -56,7 +56,7 @@ Note
   in some recipes which you want.
 
 ```
-  INHERIT += "scancode"
+  INHERIT += "scancode-tk"
 ```
 Note
 - If you want to use scancode.bbclass, There is no need to install anything on your host.
