@@ -36,24 +36,19 @@ python do_spdx () {
             if p != pn:
                 pn = p
                 break
+    if d.getVar('BPN') in ['gcc', 'libgcc']:
+        bb.debug(1, 'spdx: There is bug in scan of %s is, do nothing' % pn)
+        return
 
     # The following: do_fetch, do_unpack and do_patch tasks have been deleted,
     # so avoid archiving do_spdx here.
     if pn.startswith('glibc-locale'):
         return
-    #if (d.getVar('BPN') == "linux-yocto"):
-    #    return
     if (d.getVar('PN') == "libtool-cross"):
         return
     if (d.getVar('PN') == "libgcc-initial"):
         return
     if (d.getVar('PN') == "shadow-sysroot"):
-        return
-
-
-    # We just archive gcc-source for all the gcc related recipes
-    if d.getVar('BPN') in ['gcc', 'libgcc']:
-        bb.debug(1, 'spdx: There is bug in scan of %s is, do nothing' % pn)
         return
 
     spdx_outdir = d.getVar('SPDX_OUTDIR')
@@ -113,22 +108,27 @@ python do_spdx () {
         for f_dir, f in list_files(spdx_temp_dir):
             temp_file = os.path.join(spdx_temp_dir,f_dir,f)
             shutil.copy(temp_file, temp_dir)
-        shutil.rmtree(spdx_temp_dir)
-    #d.setVar('WORKDIR', spdx_workdir)
-    tar_name = spdx_create_tarball(d, spdx_workdir, 'patched', spdx_outdir)
+    #    shutil.rmtree(spdx_temp_dir)
+    d.setVar('WORKDIR', spdx_workdir)
+    info['sourcedir'] = spdx_workdir
+    git_path = "%s/git/.git" % info['sourcedir']
+    if os.path.exists(git_path):
+        remove_dir_tree(git_path)
+    tar_name = spdx_create_tarball(d, d.getVar('WORKDIR'), 'patched', spdx_outdir)
+
     ## get everything from cache.  use it to decide if 
     ## something needs to be rerun
     if not os.path.exists(spdx_outdir):
         bb.utils.mkdirhier(spdx_outdir)
     cur_ver_code = get_ver_code(spdx_workdir).split()[0] 
     ## Get spdx file
-    bb.note(' run fossdriver ...... ')
+    bb.note(' run fossology rest api ...... ')
     if not os.path.isfile(tar_name):
         bb.warn(info['pn'] + "has no source, do nothing")
         return
     folder_id = (d.getVar('FOLDER_ID', True) or "")
     if invoke_rest_api(d, tar_name, sstatefile, folder_id) == False:
-        bb.warn("Get spdx file fail, please check your fossology.")
+        bb.warn(info['pn'] + ": Get spdx file fail, please check your fossology.")
         remove_file(tar_name)
         return False
     if get_cached_spdx(sstatefile) != None:
@@ -136,7 +136,7 @@ python do_spdx () {
         ## CREATE MANIFEST(write to outfile )
         create_manifest(info,sstatefile)
     else:
-        bb.warn('Can\'t get the spdx file ' + info['pn'] + '. Please check your.')
+        bb.warn(info['pn'] + ': Can\'t get the spdx file ' + '. Please check your.')
     remove_file(tar_name)
 }
 
@@ -217,7 +217,7 @@ def upload(d, tar_file, folder):
         try:
             upload = subprocess.check_output(rest_api_cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
-            bb.error("Upload failed: \n%s" % e.output.decode("utf-8"))
+            bb.error(d.getVar('PN', True) + ": Upload failed: \n%s" % e.output.decode("utf-8"))
             return False
         upload = str(upload, encoding = "utf-8")
         bb.note("Upload = ")
@@ -226,7 +226,7 @@ def upload(d, tar_file, folder):
         if str(upload["code"]) == "201":
             return upload["message"]
         i += 1
-    bb.warn("Upload is fail, please check your fossology server.")
+    bb.warn(d.getVar('PN', True) + ": Upload is fail, please check your fossology server.")
     return False
 
 def analysis(d, folder_id, upload_id):
@@ -268,13 +268,13 @@ def analysis(d, folder_id, upload_id):
         if str(analysis["code"]) == "201":
             return analysis["message"]
         elif str(analysis["code"]) == "404":
-            bb.warn("analysis is still not complete.")
+            bb.warn(d.getVar('PN', True) + ": analysis is still not complete.")
             time.sleep(delaytime*2)
         else:
             return False
         i += 1
-        bb.warn("Analysis is fail, will try again.")
-    bb.warn("Analysis is fail, please check your fossology server.")
+        bb.warn(d.getVar('PN', True) + ": Analysis is fail, will try again.")
+    bb.warn(d.getVar('PN', True) + ": Analysis is fail, please check your fossology server.")
     return False
 
 def trigger(d, folder_id, upload_id):
@@ -304,7 +304,7 @@ def trigger(d, folder_id, upload_id):
         try:
             trigger = subprocess.check_output(rest_api_cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
-            bb.error("Trigger failed: \n%s" % e.output.decode("utf-8"))
+            bb.error(d.getVar('PN', True) + ": Trigger failed: \n%s" % e.output.decode("utf-8"))
             return False
         time.sleep(delaytime)
         trigger = str(trigger, encoding = "utf-8")
@@ -315,8 +315,8 @@ def trigger(d, folder_id, upload_id):
             return trigger["message"].split("/")[-1]
         i += 1
         time.sleep(delaytime * 2)
-        bb.warn("Trigger is fail, will try again.")
-    bb.warn("Trigger is fail, please check your fossology server.")
+        bb.warn(d.getVar('PN', True) + ": Trigger is fail, will try again.")
+    bb.warn(d.getVar('PN', True) + ": Trigger is fail, please check your fossology server.")
     return False
 
 def get_spdx(d, report_id, spdx_file):
@@ -369,13 +369,13 @@ def get_spdx(d, report_id, spdx_file):
             else:
                 return True
         else:
-            bb.warn("Get the first line is " + first_line)
-            bb.warn("spdx is not correct, will try again.")
+            bb.warn(d.getVar('PN', True) + ": Get the first line is " + first_line)
+            bb.warn(d.getVar('PN', True) + ": spdx is not correct, will try again.")
             file.close()
             os.remove(spdx_file)
         i += 1
         time.sleep(delaytime*2)
-    bb.warn("Get spdx failed, Please check your fossology server.")
+    bb.warn(d.getVar('PN', True) + ": Get spdx failed, Please check your fossology server.")
 
 def invoke_rest_api(d, tar_file, spdx_file, folder_id):
     import os
@@ -399,9 +399,9 @@ def invoke_rest_api(d, tar_file, spdx_file, folder_id):
             return False
         spdx2tv = get_spdx(d, report_id, spdx_file)
         if spdx2tv == False:
-            bb.warn("get_spdx is unnormal. Will try again!")
+            bb.warn(d.getVar('PN', True) + ": get_spdx is unnormal. Will try again!")
         else:
             return True
 
-    print("get_spdx of %s is unnormal. Please check your fossology server!")
+    bb.warn("get_spdx of %s is unnormal. Please confirm!")
     return False

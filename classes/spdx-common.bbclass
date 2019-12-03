@@ -10,7 +10,6 @@ SPDXEPENDENCY += " lzip-native:do_populate_sysroot"
 SPDXEPENDENCY += " xz-native:do_populate_sysroot"
 SPDXEPENDENCY += " unzip-native:do_populate_sysroot"
 SPDXEPENDENCY += " xz-native:do_populate_sysroot"
-SPDXEPENDENCY += " nodejs-native:do_populate_sysroot"
 SPDXEPENDENCY += " quilt-native:do_populate_sysroot"
 SPDXEPENDENCY += " tar-native:do_populate_sysroot"
 
@@ -27,24 +26,22 @@ LICENSELISTVERSION = "2.6"
 # the real top-level directory.
 SPDX_S ?= "${S}"
 
-addtask do_spdx before do_unpack after do_fetch
+addtask do_spdx before do_configure after do_patch
 
 def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
     """
     create the tarball from srcdir
     """
     import tarfile, shutil
+
     # Make sure we are only creating a single tarball for gcc sources
     #if (d.getVar('SRC_URI') == ""):
     #    return
-
     # For the kernel archive, srcdir may just be a link to the
     # work-shared location. Use os.path.realpath to make sure
     # that we archive the actual directory and not just the link.
     srcdir = os.path.realpath(srcdir)
-    build_dir = os.path.join(srcdir, "build")
-    if os.path.exists(build_dir):
-        shutil.rmtree(build_dir)
+
     bb.utils.mkdirhier(ar_outdir)
     if suffix:
         filename = '%s-%s.tar.gz' % (d.getVar('PF'), suffix)
@@ -56,7 +53,7 @@ def spdx_create_tarball(d, srcdir, suffix, ar_outdir):
     tar = tarfile.open(tarname, 'w:gz')
     tar.add(srcdir, arcname=os.path.basename(srcdir))
     tar.close()
-    shutil.rmtree(srcdir)
+    #shutil.rmtree(srcdir)
     return tarname
 
 # Run do_unpack and do_patch
@@ -65,12 +62,7 @@ def spdx_get_src(d):
     spdx_workdir = d.getVar('SPDX_WORKDIR')
     spdx_sysroot_native = d.getVar('STAGING_DIR_NATIVE')
     pn = d.getVar('PN')
-
-    # We just archive gcc-source for all the gcc related recipes
-    if d.getVar('BPN') in ['gcc', 'libgcc']:
-        bb.debug(1, 'spdx: There is bug in scan of %s is, do nothing' % pn)
-        return
-
+    
     # The kernel class functions require it to be on work-shared, so we dont change WORKDIR
     if not is_work_shared(d):
         # Change the WORKDIR to make do_unpack do_patch run in another dir.
@@ -84,10 +76,26 @@ def spdx_get_src(d):
         bb.utils.mkdirhier(d.getVar('B'))
 
         bb.build.exec_func('do_unpack', d)
+    # Copy source of kernel to spdx_workdir
+    if is_work_shared(d):
+        d.setVar('WORKDIR', spdx_workdir)
+        d.setVar('STAGING_DIR_NATIVE', spdx_sysroot_native)
+        src_dir = spdx_workdir + "/" + d.getVar('PN')+ "-" + d.getVar('PV') + "-" + d.getVar('PR')
+        bb.utils.mkdirhier(src_dir)
+        if bb.data.inherits_class('kernel',d):
+            share_src = d.getVar('STAGING_KERNEL_DIR')
+        cmd_copy_share = "cp -rf " + share_src + "/* " + src_dir + "/"
+        cmd_copy_kernel_result = os.popen(cmd_copy_share).read()
+        bb.note("cmd_copy_kernel_result = " + cmd_copy_kernel_result)
+        
+        git_path = src_dir + "/.git"
+        if os.path.exists(git_path):
+            remove_dir_tree(git_path)
 
     # Make sure gcc and kernel sources are patched only once
     if not (d.getVar('SRC_URI') == "" or is_work_shared(d)):
         bb.build.exec_func('do_patch', d)
+
     # Some userland has no source.
     if not os.path.exists( spdx_workdir ):
         bb.utils.mkdirhier(spdx_workdir)
@@ -125,13 +133,13 @@ def write_cached_spdx( info,sstatefile, ver_code ):
         return dest_sed_cmd
 
     ## Document level information
-    sed_cmd = r"sed -i -e 's#\r$##g' " 
+    sed_cmd = r"sed -i -e 's#\r$##' " 
     spdx_DocumentComment = "<text>SPDX for " + info['pn'] + " version " \ 
         + info['pv'] + "</text>"
     sed_cmd = sed_replace(sed_cmd,"DocumentComment",spdx_DocumentComment)
     
     ## Creator information
-    sed_cmd = sed_replace(sed_cmd,"Creator: ",info['creator']['Tool'])
+    sed_cmd = sed_replace(sed_cmd,"Creator: Tool: ",info['creator']['Tool'])
 
     ## Package level information
     sed_cmd = sed_replace(sed_cmd, "PackageName: ", info['pn'])
