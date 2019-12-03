@@ -12,15 +12,15 @@
 # 1) By default,spdx files will be output to the path which is defined as[SPDX_DEPLOY_DIR] 
 # 2) By default, SPDX_DEPLOY_DIR is tmp/deploy
 #
+
 inherit spdx-common
 
 SPDXEPENDENCY += "scancode-toolkit-native:do_populate_sysroot"
 
 CREATOR_TOOL = "cancode.bbclass in meta-spdxscanner"
 
-python do_spdx () {
+python do_spdx(){
     import os, sys, json, shutil
-
     pn = d.getVar('PN')
     assume_provided = (d.getVar("ASSUME_PROVIDED") or "").split()
     if pn in assume_provided:
@@ -28,24 +28,18 @@ python do_spdx () {
             if p != pn:
                 pn = p
                 break
-
+    if d.getVar('BPN') in ['gcc', 'libgcc']:
+        bb.debug(1, 'spdx: There is bug in scan of %s is, do nothing' % pn)
+        return
     # glibc-locale: do_fetch, do_unpack and do_patch tasks have been deleted,
     # so avoid archiving source here.
     if pn.startswith('glibc-locale'):
-        return
-    if (d.getVar('BPN') == "linux-yocto"):
         return
     if (d.getVar('PN') == "libtool-cross"):
         return
     if (d.getVar('PN') == "libgcc-initial"):
         return
     if (d.getVar('PN') == "shadow-sysroot"):
-        return
-
-
-    # We just archive gcc-source for all the gcc related recipes
-    if d.getVar('BPN') in ['gcc', 'libgcc']:
-        bb.debug(1, 'spdx: There is bug in scan of %s is, do nothing' % pn)
         return
 
     spdx_outdir = d.getVar('SPDX_OUTDIR')
@@ -85,7 +79,6 @@ python do_spdx () {
         bb.utils.mkdirhier( manifest_dir )
     info['outfile'] = os.path.join(manifest_dir, info['pn'] + "-" + info['pv'] + ".spdx" )
     sstatefile = os.path.join(spdx_outdir, info['pn'] + "-" + info['pv'] + ".spdx" )
-    
     # if spdx has been exist
     if os.path.exists(info['outfile']):
         bb.note(info['pn'] + "spdx file has been exist, do nothing")
@@ -94,26 +87,26 @@ python do_spdx () {
         bb.note(info['pn'] + "spdx file has been exist, do nothing")
         create_manifest(info,sstatefile)
         return
-
     spdx_get_src(d)
-
+    
     bb.note('SPDX: Archiving the patched source...')
     if os.path.isdir(spdx_temp_dir):
         for f_dir, f in list_files(spdx_temp_dir):
             temp_file = os.path.join(spdx_temp_dir,f_dir,f)
             shutil.copy(temp_file, temp_dir)
-        shutil.rmtree(spdx_temp_dir)
+        #shutil.rmtree(spdx_temp_dir)
     if not os.path.exists(spdx_outdir):
         bb.utils.mkdirhier(spdx_outdir)
     cur_ver_code = get_ver_code(spdx_workdir).split()[0] 
     ## Get spdx file
-    bb.note(' run ScanCode ...... ')
+    bb.note(' run scanCode ...... ')
     d.setVar('WORKDIR', d.getVar('SPDX_WORKDIR', True))
     info['sourcedir'] = spdx_workdir
-    git_path = "%s/.git" % info['sourcedir']
+    git_path = "%s/git/.git" % info['sourcedir']
     if os.path.exists(git_path):
         remove_dir_tree(git_path)
     invoke_scancode(info['sourcedir'],sstatefile)
+    bb.warn("source dir = " + info['sourcedir'])
     if get_cached_spdx(sstatefile) != None:
         write_cached_spdx( info,sstatefile,cur_ver_code )
         ## CREATE MANIFEST(write to outfile )
@@ -144,5 +137,3 @@ def invoke_scancode( OSS_src_dir, spdx_file):
     except subprocess.CalledProcessError as e:
         bb.fatal("Could not invoke scancode Command "
                  "'%s' returned %d:\n%s" % (scancode_cmd, e.returncode, e.output))
-
-EXPORT_FUNCTIONS do_spdx

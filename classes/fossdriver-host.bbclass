@@ -38,8 +38,6 @@ python do_spdx () {
     # so avoid archiving source here.
     if pn.startswith('glibc-locale'):
         return
-    if (d.getVar('BPN') == "linux-yocto"):
-        return
     if (d.getVar('PN') == "libtool-cross"):
         return
     if (d.getVar('PN') == "libgcc-initial"):
@@ -47,6 +45,9 @@ python do_spdx () {
     if (d.getVar('PN') == "shadow-sysroot"):
         return
 
+    if d.getVar('BPN') in ['gcc', 'libgcc']:
+        bb.debug(1, 'spdx: There is bug in scan of %s is, do nothing' % pn)
+        return
 
     # We just archive gcc-source for all the gcc related recipes
     if d.getVar('BPN') in ['gcc', 'libgcc']:
@@ -108,8 +109,12 @@ python do_spdx () {
         for f_dir, f in list_files(spdx_temp_dir):
             temp_file = os.path.join(spdx_temp_dir,f_dir,f)
             shutil.copy(temp_file, temp_dir)
-        shutil.rmtree(spdx_temp_dir)
+    
     d.setVar('WORKDIR', spdx_workdir)
+    info['sourcedir'] = spdx_workdir
+    git_path = "%s/git/.git" % info['sourcedir']
+    if os.path.exists(git_path):
+        remove_dir_tree(git_path)
     tar_name = spdx_create_tarball(d, d.getVar('WORKDIR'), 'patched', spdx_outdir)
     ## get everything from cache.  use it to decide if 
     ## something needs to be rerun
@@ -128,6 +133,7 @@ python do_spdx () {
         create_manifest(info,sstatefile)
     else:
         bb.warn('Can\'t get the spdx file ' + info['pn'] + '. Please check your.')
+    remove_file(tar_name)
 }
 
 
