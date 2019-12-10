@@ -17,7 +17,7 @@ inherit spdx-common
 
 SPDXEPENDENCY += "scancode-toolkit-native:do_populate_sysroot"
 
-CREATOR_TOOL = "cancode.bbclass in meta-spdxscanner"
+CREATOR_TOOL = "scancode-tk.bbclass in meta-spdxscanner"
 
 python do_spdx(){
     import os, sys, json, shutil
