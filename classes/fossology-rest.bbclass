@@ -39,7 +39,6 @@ python do_spdx () {
     if d.getVar('BPN') in ['gcc', 'libgcc']:
         bb.debug(1, 'spdx: There is bug in scan of %s is, do nothing' % pn)
         return
-
     # The following: do_fetch, do_unpack and do_patch tasks have been deleted,
     # so avoid archiving do_spdx here.
     if pn.startswith('glibc-locale'):
@@ -128,7 +127,7 @@ python do_spdx () {
         return
     folder_id = (d.getVar('FOLDER_ID', True) or "")
     if invoke_rest_api(d, tar_name, sstatefile, folder_id) == False:
-        bb.warn(info['pn'] + ": Get spdx file fail, please check your fossology.")
+        bb.warn(info['pn'] + ": Get spdx file fail, please check fossology server.")
         remove_file(tar_name)
         return False
     if get_cached_spdx(sstatefile) != None:
@@ -136,7 +135,7 @@ python do_spdx () {
         ## CREATE MANIFEST(write to outfile )
         create_manifest(info,sstatefile)
     else:
-        bb.warn(info['pn'] + ': Can\'t get the spdx file ' + '. Please check your.')
+        bb.warn(info['pn'] + ': Can\'t get the spdx file ' + '. Please check fossology server.')
     remove_file(tar_name)
 }
 
@@ -181,10 +180,9 @@ def has_upload(d, tar_file, folder_id):
     bb.note("len of upload_output = ")
     bb.note(str(len(upload_output)))
     for i in range(0, len(upload_output)):
-        if upload_output[i]["uploadname"] == file_name:
-            if str(os.path.getsize(tar_file)) == str(upload_output[i]["filesize"]) and str(upload_output[i]["folderid"]) == str(folder_id):
-                bb.warn("Find " + file_name + "in fossology server \"Software Repository\" folder. So, will not upload again.")
-                return upload_output[i]["id"]
+        if upload_output[i]["uploadname"] == file_name and str(upload_output[i]["folderid"]) == str(folder_id):
+            bb.warn("Find " + file_name + " in fossology server \"Software Repository\" folder. So, will not upload again.")
+            return upload_output[i]["id"]
     return False
 
 def upload(d, tar_file, folder):
@@ -213,7 +211,7 @@ def upload(d, tar_file, folder):
                     + " --noproxy 127.0.0.1"
     bb.note("Upload : Invoke rest_api_cmd = " + rest_api_cmd )
     while i < 10:
-        time.sleep(delaytime)
+        time.sleep(delaytime server)
         try:
             upload = subprocess.check_output(rest_api_cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
@@ -324,7 +322,7 @@ def get_spdx(d, report_id, spdx_file):
     import subprocess
     import time
     delaytime = 50
-    empty = True
+    complete = False
     i = 0
 
     server_url = (d.getVar('FOSSOLOGY_SERVER', True) or "")
@@ -341,15 +339,16 @@ def get_spdx(d, report_id, spdx_file):
                     + " -H \"Authorization: Bearer " + token + "\"" \
                     + " --noproxy 127.0.0.1"
     bb.note("get_spdx : Invoke rest_api_cmd = " + rest_api_cmd )
-    while i < 3:
+    while i < 10:
         time.sleep(delaytime)
         file = open(spdx_file,'wt')
         try:
-            p = subprocess.Popen(rest_api_cmd, shell=True, universal_newlines=True, stdout=file)
+            p = subprocess.Popen(rest_api_cmd, shell=True, universal_newlines=True, stdout=file).wait()
         except subprocess.CalledProcessError as e:
-            bb.error("Get spdx failed: \n%s" % e.output.decode("utf-8"))
+            bb.error("Get spdx failed: \n%s. Please check fossology server." % e.output.decode("utf-8"))
+            file.close()
+            os.remove(spdx_file)
             return False
-        ret_code = p.wait()
         file.flush()
         time.sleep(delaytime)
         file.close()
@@ -359,22 +358,24 @@ def get_spdx(d, report_id, spdx_file):
             line = file.readline()
             while line:
                 if "LicenseID:" in line:
-                    empty = False
+                    complete = True
                     break
                 line = file.readline()
             file.close()
-            if empty == True:
-                bb.warn("Hasn't get license info.")
-                return False
+            if complete == False:
+                bb.warn("license info not complete, try agin.")
             else:
                 return True
         else:
-            bb.warn(d.getVar('PN', True) + ": Get the first line is " + first_line)
-            bb.warn(d.getVar('PN', True) + ": spdx is not correct, will try again.")
-            file.close()
-            os.remove(spdx_file)
+            bb.warn(d.getVar('PN', True) + ": Get the first line is " + first_line + ". Try agin")
+
+        file.close()
+        os.remove(spdx_file)
         i += 1
-        time.sleep(delaytime*2)
+        delaytime = delaytime + 20
+        time.sleep(delaytime)
+
+    file.close()
     bb.warn(d.getVar('PN', True) + ": Get spdx failed, Please check your fossology server.")
 
 def invoke_rest_api(d, tar_file, spdx_file, folder_id):
