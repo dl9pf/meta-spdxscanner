@@ -211,7 +211,7 @@ def upload(d, tar_file, folder):
                     + " --noproxy 127.0.0.1"
     bb.note("Upload : Invoke rest_api_cmd = " + rest_api_cmd )
     while i < 10:
-        time.sleep(delaytime server)
+        time.sleep(delaytime)
         try:
             upload = subprocess.check_output(rest_api_cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
