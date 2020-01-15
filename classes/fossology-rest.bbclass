@@ -125,7 +125,7 @@ python do_spdx () {
     if not os.path.isfile(tar_name):
         bb.warn(info['pn'] + "has no source, do nothing")
         return
-    folder_id = (d.getVar('FOLDER_ID', True) or "")
+    folder_id = get_folder_id(d)
     if invoke_rest_api(d, tar_name, sstatefile, folder_id) == False:
         bb.warn(info['pn'] + ": Get spdx file fail, please check fossology server.")
         remove_file(tar_name)
@@ -138,6 +138,97 @@ python do_spdx () {
         bb.warn(info['pn'] + ': Can\'t get the spdx file ' + '. Please check fossology server.')
     remove_file(tar_name)
 }
+
+def get_folder_id_by_name(d, folder_name):
+    import os
+    import subprocess
+    import json
+
+    server_url = (d.getVar('FOSSOLOGY_SERVER', True) or "")
+    if server_url == "":
+        bb.note("Please set fossology server URL by setting FOSSOLOGY_SERVER!\n")
+        raise OSError(errno.ENOENT, "No setting of  FOSSOLOGY_SERVER")
+
+    token = (d.getVar('TOKEN', True) or "")
+    if token == "":
+        bb.note("Please set token of fossology server by setting TOKEN!\n" + srcPath)
+        raise OSError(errno.ENOENT, "No setting of TOKEN comes from fossology server.")
+
+    rest_api_cmd = "curl -k -s -S -X GET " + server_url + "/api/v1/folders" \
+                   + " -H \"Authorization: Bearer " + token + "\"" \
+                   + " --noproxy 127.0.0.1"
+    bb.note("Invoke rest_api_cmd = " + rest_api_cmd )
+    try:
+        all_folder = subprocess.check_output(rest_api_cmd, stderr=subprocess.STDOUT, shell=True)
+    except subprocess.CalledProcessError as e:
+        bb.error(d.getVar('PN', True) + ": Get folder list failed: \n%s" % e.output.decode("utf-8"))
+        return False
+    all_folder = str(all_folder, encoding = "utf-8")
+    bb.note("all_folder list= " + all_folder)
+    all_folder = json.loads(all_folder)
+    bb.note("len of all_folder = ")
+    bb.note(str(len(all_folder)))
+    if len(all_folder) == 0:
+        bb.note("Can not get folder list.")
+        return False
+    bb.note("all_folder[0][name] = ")
+    bb.note(all_folder[0]["name"])
+    for i in range(0, len(all_folder)):
+        if all_folder[i]["name"] == folder_name:
+                bb.note("Find " + folder_name + "in fossology server ")
+                return all_folder[i]["id"]
+    return False
+
+def create_folder(d, folder_name):
+    import os
+    import subprocess
+
+    server_url = (d.getVar('FOSSOLOGY_SERVER', True) or "")
+    if server_url == "":
+        bb.note("Please set fossology server URL by setting FOSSOLOGY_SERVER!\n")
+        raise OSError(errno.ENOENT, "No setting of  FOSSOLOGY_SERVER")
+
+    token = (d.getVar('TOKEN', True) or "")
+    if token == "":
+        bb.note("Please set token of fossology server by setting TOKEN!\n" + srcPath)
+        raise OSError(errno.ENOENT, "No setting of TOKEN comes from fossology server.")
+
+    rest_api_cmd = "curl -k -s -S -X POST " + server_url + "/api/v1/folders" \
+                   + " -H \'parentFolder: 1\'" \
+                   + " -H \'folderName: " + folder_name + "\'" \
+                   + " -H \"Authorization: Bearer " + token + "\"" \
+                   + " --noproxy 127.0.0.1"
+    bb.note("Invoke rest_api_cmd = " + rest_api_cmd)
+    try:
+        add_folder = subprocess.check_output(rest_api_cmd, stderr=subprocess.STDOUT, shell=True)
+    except subprocess.CalledProcessError as e:
+        bb.error(d.getVar('PN', True) + ": Added folder failed: \n%s" % e.output.decode("utf-8"))
+        return False
+
+    add_folder = str(add_folder, encoding = "utf-8")
+    bb.note("add_folder = ")
+    bb.note(add_folder)
+    add_folder = eval(add_folder)
+    if str(add_folder["code"]) == "201":
+        bb.note("add_folder = " + folder_name)
+        return add_folder["message"]
+    elif str(add_folder["code"]) == "200":
+        bb.note("Folder : " + folder_name + "has been created.")
+        return get_folder_id_by_name(d, folder_name)
+    else:
+        bb.error(d.getVar('PN', True) + ": Added folder failed, please check your fossology server.")
+        return False
+
+def get_folder_id(d):
+
+    if d.getVar('FOLDER_NAME', False):
+        folder_name = d.getVar('FOLDER_NAME')
+        folder_id = create_folder(d, folder_name)
+    else:
+        folder_id = (d.getVar('FOLDER_ID', True) or "1")
+
+    bb.note("Folder Id =  " + str(folder_id))
+    return str(folder_id)
 
 def has_upload(d, tar_file, folder_id):
     import os
@@ -211,7 +302,7 @@ def upload(d, tar_file, folder):
                     + " --noproxy 127.0.0.1"
     bb.note("Upload : Invoke rest_api_cmd = " + rest_api_cmd )
     while i < 10:
-        time.sleep(delaytime server)
+        time.sleep(delaytime)
         try:
             upload = subprocess.check_output(rest_api_cmd, stderr=subprocess.STDOUT, shell=True)
         except subprocess.CalledProcessError as e:
