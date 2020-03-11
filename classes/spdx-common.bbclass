@@ -136,8 +136,10 @@ def write_cached_spdx( info,sstatefile, ver_code ):
     sed_cmd = r"sed -i -e 's#\r$##' " 
     spdx_DocumentComment = "<text>SPDX for " + info['pn'] + " version " \ 
         + info['pv'] + "</text>"
-    sed_cmd = sed_replace(sed_cmd,"DocumentComment",spdx_DocumentComment)
-    
+    sed_cmd = sed_replace(sed_cmd,"DocumentComment: ",spdx_DocumentComment)
+    sed_cmd = sed_insert(sed_cmd,"SPDXID:","DocumentName: " + info['pn']+"-"+info['pv'])
+    sed_cmd = sed_insert(sed_cmd,"SPDXID:","DocumentNamespace: http://spdx.org/spdxdocs/SPDXRef-" + info['creator']['Tool']+"-"+info['pn']+"_"+info['pv'])
+
     ## Creator information
     sed_cmd = sed_replace(sed_cmd,"Creator: Tool: ",info['creator']['Tool'])
 
@@ -147,7 +149,7 @@ def write_cached_spdx( info,sstatefile, ver_code ):
     sed_cmd = sed_replace(sed_cmd, "PackageDownloadLocation: ",info['package_download_location'])
     sed_cmd = sed_insert(sed_cmd, "PackageDownloadLocation: ", "PackageHomePage: " + info['package_homepage'])
     sed_cmd = sed_insert(sed_cmd, "PackageDownloadLocation: ", "PackageSummary: " + "<text>" + info['package_summary'] + "</text>")
-    sed_cmd = sed_insert(sed_cmd, "PackageCopyrightText: ", "PackageComment: <text>\\nModificationRecord: " + info['modified'] + "\\n</text>")
+    sed_cmd = sed_insert(sed_cmd, "PackageDownloadLocation: ", "PackageComment: <text>\\nModificationRecord: " + info['modified'] + "\\n</text>")
     sed_cmd = sed_replace(sed_cmd, "PackageVerificationCode: ",ver_code)
     sed_cmd = sed_insert(sed_cmd, "PackageVerificationCode: ", "PackageDescription: " + 
         "<text>" + info['pn'] + " version " + info['pv'] + "</text>")
