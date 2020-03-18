@@ -1,3 +1,5 @@
+# This repository has been moved to http://git.yoctoproject.org/cgit/cgit.cgi/meta-spdxscanner/.
+
 # meta-spdxscanner
 
 meta-spdxscanner supports the following SPDX create tools.
